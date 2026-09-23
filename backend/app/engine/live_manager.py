@@ -7,15 +7,14 @@ from typing import Dict, Any, Optional, List, Callable
 from app.models.scan import ScanRequest, ScanResult, CheckStep, TargetDevice, ScanStatus
 from app.models.findings import Finding
 from app.models.audit import AuditEntry
-from app.engine.mock_android import MockAndroidScanner
-from app.engine.mock_wireless import MockWirelessScanner
+from app.engine.real_scanner import RealAndroidScanner, RealWirelessScanner
 from app.engine.mock_ios import MockIOSScanner
 from app.db.audit_log import record_scan
 
 class ScanSessionManager:
     def __init__(self):
-        self.android_scanner = MockAndroidScanner()
-        self.wireless_scanner = MockWirelessScanner()
+        self.android_scanner = RealAndroidScanner()
+        self.wireless_scanner = RealWirelessScanner()
         self.ios_scanner = MockIOSScanner()
         self.active_scans: Dict[str, Dict[str, Any]] = {}
         self.completed_scans: Dict[str, ScanResult] = {}
@@ -62,6 +61,19 @@ class ScanSessionManager:
         payload = f"{scan_id}:{timestamp}:{target.id}:{target.ip_or_serial}:{score}:{auditor}:KINGSTING_SECURE"
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:32].upper()
 
+    async def _emit_event(self, callback: Optional[Callable], event: Dict[str, Any]):
+        if not callback:
+            return
+        try:
+            if asyncio.iscoroutinefunction(callback):
+                await callback(event)
+            else:
+                res = callback(event)
+                if asyncio.iscoroutine(res):
+                    await res
+        except Exception as e:
+            print(f"Error emitting scan event: {e}")
+
     async def run_scan_lifecycle(self, scan_request: ScanRequest, event_callback: Optional[Callable[[Dict[str, Any]], Any]] = None) -> ScanResult:
         scan_id = f"KS-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
         started_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -78,66 +90,61 @@ class ScanSessionManager:
             "total_steps": total_steps
         }
 
-        if event_callback:
-            await event_callback({
-                "type": "scan_started",
-                "scan_id": scan_id,
-                "module": scan_request.module,
-                "depth": scan_request.depth,
-                "target": scan_request.target.model_dump(),
-                "total_steps": total_steps,
-                "timestamp": started_at
-            })
+        await self._emit_event(event_callback, {
+            "type": "scan_started",
+            "scan_id": scan_id,
+            "module": scan_request.module,
+            "depth": scan_request.depth,
+            "target": scan_request.target.model_dump(),
+            "total_steps": total_steps,
+            "timestamp": started_at
+        })
 
         completed_steps_list: List[CheckStep] = []
         all_findings: List[Finding] = []
 
         for idx, step in enumerate(steps):
             step.status = "running"
-            if event_callback:
-                await event_callback({
-                    "type": "step_started",
-                    "scan_id": scan_id,
-                    "step_index": idx + 1,
-                    "total_steps": total_steps,
-                    "step": step.model_dump()
-                })
+            await self._emit_event(event_callback, {
+                "type": "step_started",
+                "scan_id": scan_id,
+                "step_index": idx + 1,
+                "total_steps": total_steps,
+                "step": step.model_dump()
+            })
 
-            # Realistic simulated progress sub-ticks
-            ticks = 3
+            # Real execution with sub-progress update
+            ticks = 2
             tick_time = (step.duration_ms / 1000.0) / ticks
             for t in range(1, ticks + 1):
                 await asyncio.sleep(tick_time)
-                if event_callback:
-                    await event_callback({
-                        "type": "step_progress",
-                        "scan_id": scan_id,
-                        "step_id": step.id,
-                        "progress": int((t / ticks) * 100)
-                    })
+                await self._emit_event(event_callback, {
+                    "type": "step_progress",
+                    "scan_id": scan_id,
+                    "step_id": step.id,
+                    "progress": int((t / ticks) * 100)
+                })
 
-            # Execute step simulation
+            # Execute real step
             updated_step, step_findings = scanner.execute_step(step, scan_request.target, scan_request.depth)
             completed_steps_list.append(updated_step)
 
             for f in step_findings:
                 all_findings.append(f)
-                if event_callback:
-                    await event_callback({
-                        "type": "finding_discovered",
-                        "scan_id": scan_id,
-                        "finding": f.model_dump()
-                    })
-
-            if event_callback:
-                await event_callback({
-                    "type": "step_completed",
+                await self._emit_event(event_callback, {
+                    "type": "finding_discovered",
                     "scan_id": scan_id,
-                    "step_index": idx + 1,
-                    "total_steps": total_steps,
-                    "step": updated_step.model_dump(),
-                    "findings_count": len(step_findings)
+                    "finding": f.model_dump()
                 })
+
+            await self._emit_event(event_callback, {
+                "type": "step_completed",
+                "scan_id": scan_id,
+                "step_index": idx + 1,
+                "total_steps": total_steps,
+                "step": updated_step.model_dump(),
+                "findings_count": len(step_findings)
+            })
 
         completed_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         score, grade = self.calculate_score_and_grade(all_findings)
@@ -208,12 +215,11 @@ class ScanSessionManager:
         )
         record_scan(audit_entry)
 
-        if event_callback:
-            await event_callback({
-                "type": "scan_completed",
-                "scan_id": scan_id,
-                "result": result.model_dump()
-            })
+        await self._emit_event(event_callback, {
+            "type": "scan_completed",
+            "scan_id": scan_id,
+            "result": result.model_dump()
+        })
 
         return result
 
