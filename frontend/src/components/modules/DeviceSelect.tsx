@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { TargetDevice, ScanModule } from '../../types';
-import { getDevices } from '../../services/api';
+import { getDevices, pairWifiAdb, connectWifiAdb } from '../../services/api';
 import {
   Smartphone,
   Wifi,
@@ -14,7 +14,10 @@ import {
   PlugZap,
   HelpCircle,
   Plus,
-  Send
+  Send,
+  KeyRound,
+  Network,
+  Laptop
 } from 'lucide-react';
 
 interface DeviceSelectProps {
@@ -33,8 +36,17 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
   const [loading, setLoading] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
 
-  // Wireless ADB & Manual IP State
-  const [wifiAdbIp, setWifiAdbIp] = useState('');
+  // Wireless ADB Mode Selection: 'pair' (Android 11+ pairing code) vs 'connect' (direct ip:port)
+  const [adbMode, setAdbMode] = useState<'pair' | 'connect'>('pair');
+
+  // Wireless ADB Pairing State
+  const [pairingIpPort, setPairingIpPort] = useState('192.168.100.31:');
+  const [pairingCode, setPairingCode] = useState('');
+  const [isPairing, setIsPairing] = useState(false);
+  const [pairingMessage, setPairingMessage] = useState<string | null>(null);
+
+  // Wireless ADB Direct Connect State
+  const [wifiAdbIp, setWifiAdbIp] = useState('192.168.100.31:5555');
   const [connectingAdb, setConnectingAdb] = useState(false);
   const [adbConnectMessage, setAdbConnectMessage] = useState<string | null>(null);
 
@@ -48,7 +60,11 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
       const data = await getDevices(module);
       setDevices(data);
       if (data.length > 0) {
-        setSelectedDevice(data[0]);
+        // If nothing selected or previous selection gone, select first
+        setSelectedDevice((prev) => {
+          if (prev && data.find((d) => d.id === prev.id)) return prev;
+          return data[0];
+        });
       } else {
         setSelectedDevice(null);
       }
@@ -70,20 +86,36 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
     });
   };
 
+  // Pair via 6-digit code (Android 11+)
+  const handlePairWifiAdb = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pairingIpPort.trim() || !pairingCode.trim()) return;
+    setIsPairing(true);
+    setPairingMessage('Transmitting pairing credentials to Android device...');
+
+    try {
+      const res = await pairWifiAdb(pairingIpPort.trim(), pairingCode.trim());
+      setPairingMessage(res.message || (res.success ? 'Successfully paired! Now connect to the main debugging port.' : 'Pairing failed.'));
+      if (res.success) {
+        fetchDeviceList();
+      }
+    } catch (err: any) {
+      setPairingMessage(`Pairing error: ${err.message || err}`);
+    } finally {
+      setIsPairing(false);
+    }
+  };
+
+  // Direct connect (IP:Port)
   const handleConnectWifiAdb = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!wifiAdbIp.trim()) return;
     setConnectingAdb(true);
-    setAdbConnectMessage('Attempting wireless ADB pairing...');
+    setAdbConnectMessage('Attempting wireless ADB connection...');
 
     try {
-      const res = await fetch('http://127.0.0.1:8765/api/devices/connect-wifi-adb', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ip_port: wifiAdbIp.trim() })
-      });
-      const data = await res.json();
-      setAdbConnectMessage(data.message || 'Connection attempt finished');
+      const res = await connectWifiAdb(wifiAdbIp.trim());
+      setAdbConnectMessage(res.message || (res.success ? 'Connected successfully!' : 'Connection failed.'));
       fetchDeviceList();
     } catch (err: any) {
       setAdbConnectMessage(`Error: ${err.message || err}`);
@@ -120,13 +152,31 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
     return <Apple className="w-5 h-5 text-blue-400" />;
   };
 
+  const getDeviceIcon = (device: TargetDevice) => {
+    const nameLower = (device.name + ' ' + (device.os_version || '')).toLowerCase();
+    if (device.connection_mode === 'usb') return <Usb className="w-5 h-5 text-cyan-400" />;
+    if (nameLower.includes('router') || nameLower.includes('gateway') || nameLower.includes('access point')) {
+      return <Radio className="w-5 h-5 text-amber-400" />;
+    }
+    if (nameLower.includes('s10') || nameLower.includes('galaxy') || nameLower.includes('smartphone') || nameLower.includes('mobile') || nameLower.includes('phone') || nameLower.includes('android')) {
+      return <Smartphone className="w-5 h-5 text-emerald-400" />;
+    }
+    if (nameLower.includes('iphone') || nameLower.includes('ipad') || nameLower.includes('apple')) {
+      return <Apple className="w-5 h-5 text-blue-400" />;
+    }
+    if (nameLower.includes('host') || nameLower.includes('laptop') || nameLower.includes('pc')) {
+      return <Laptop className="w-5 h-5 text-slate-300" />;
+    }
+    return <Network className="w-5 h-5 text-cyan-400" />;
+  };
+
   return (
-    <div className="w-full max-w-4xl mx-auto py-8 px-4">
-      {/* Breadcrumb & Navigation */}
+    <div className="w-full max-w-5xl mx-auto py-6 px-4">
+      {/* Top Breadcrumb & Action */}
       <div className="flex items-center justify-between mb-6">
         <button
           onClick={onBack}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300 hover:text-white hover:border-slate-700 transition-colors cursor-pointer"
+          className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer py-1 px-2.5 rounded-lg hover:bg-slate-800"
         >
           <ChevronLeft className="w-4 h-4" />
           <span>Back to Modules</span>
@@ -144,29 +194,31 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
           {module === 'android'
             ? 'Android Physical & Wireless Interrogation'
             : module === 'wireless'
-            ? 'Live WiFi & Subnet Topology'
+            ? 'Live Wi-Fi Subnet & Connected Devices'
             : 'iOS Hardware & Interface Discovery'}
         </h2>
         <p className="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto">
           {module === 'android'
-            ? 'Probing connected USB buses via ADB and listening for active wireless debug endpoints.'
+            ? 'Connect via USB cable or completely wirelessly using Android 11+ Wireless Debugging & Pairing Code.'
             : module === 'wireless'
-            ? 'Interrogating your system wireless adapter for real active SSIDs, ciphers, and local subnet routing.'
+            ? 'Discover all active devices connected to your local Wi-Fi subnet (smartphones, routers, endpoints) and audit authorized targets.'
             : 'Probing Apple MobileDeviceUSB interfaces and network endpoints.'}
         </p>
       </div>
 
-      {/* Action Bar: Re-Scan Button */}
+      {/* Action Bar: Re-Scan Subnet / Hardware */}
       <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-900/70 border border-slate-800 mb-6">
         <div className="flex items-center gap-3">
           <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
             <Radio className="w-4 h-4" />
           </div>
           <div>
-            <h4 className="text-xs font-bold text-white">Live Hardware Scanner Active</h4>
+            <h4 className="text-xs font-bold text-white">
+              {module === 'wireless' ? 'Subnet ARP & Host Discovery Active' : 'Live Hardware Scanner Active'}
+            </h4>
             <p className="text-[11px] text-slate-400">
               {devices.length > 0
-                ? `${devices.length} real target(s) detected and validated`
+                ? `${devices.length} real target(s) detected and validated on interface`
                 : 'No hardware target currently detected on interface'}
             </p>
           </div>
@@ -178,18 +230,166 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
           className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition-all cursor-pointer shadow-sm"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isScanning ? 'animate-spin text-cyan-400' : ''}`} />
-          <span>{isScanning ? 'Scanning Interfaces...' : 'Re-scan Hardware'}</span>
+          <span>{isScanning ? 'Scanning Interfaces...' : module === 'wireless' ? 'Re-scan Subnet Devices' : 'Re-scan Hardware'}</span>
         </button>
       </div>
 
-      {/* Device List or Empty State */}
+      {/* Cable-Free Wireless Debugging Section (Prominently Featured in Android Module) */}
+      {module === 'android' && (
+        <div className="mb-8 p-6 rounded-2xl bg-slate-900/90 border border-emerald-500/30 shadow-xl shadow-emerald-950/20">
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+                <Wifi className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <span>Connect Android Phone Wirelessly (No USB Needed)</span>
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800 text-[10px] font-bold">100% Cable-Free</span>
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Connect your Samsung, Pixel, Xiaomi, or other Android phone over your local Wi-Fi.
+                </p>
+              </div>
+            </div>
+
+            {/* Mode Toggle Tabs */}
+            <div className="flex rounded-lg bg-slate-950 p-1 border border-slate-800 text-xs">
+              <button
+                type="button"
+                onClick={() => setAdbMode('pair')}
+                className={`px-3 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
+                  adbMode === 'pair' ? 'bg-cyan-500 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Pair with 6-Digit Code
+              </button>
+              <button
+                type="button"
+                onClick={() => setAdbMode('connect')}
+                className={`px-3 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
+                  adbMode === 'connect' ? 'bg-cyan-500 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Direct Connect (Port)
+              </button>
+            </div>
+          </div>
+
+          {/* Quick-fill Helper for Detected Subnet Devices */}
+          <div className="mb-4 p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80 flex items-center justify-between text-xs">
+            <span className="text-slate-400">
+              Quick IP Fill from local Wi-Fi:
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setPairingIpPort('192.168.100.31:');
+                  setWifiAdbIp('192.168.100.31:5555');
+                }}
+                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-800/50 text-[11px] font-mono cursor-pointer transition-colors"
+              >
+                Khani-s-S10 (192.168.100.31)
+              </button>
+            </div>
+          </div>
+
+          {/* Mode 1: Pair Android 11+ with 6-digit Code */}
+          {adbMode === 'pair' ? (
+            <div className="space-y-3">
+              <div className="p-3.5 rounded-xl bg-slate-950/50 border border-slate-800/80 text-xs text-slate-300 space-y-1.5">
+                <span className="font-bold text-cyan-300 block mb-1">Android 11+ Wireless Pairing Steps:</span>
+                <div>1. On your phone: <strong>Settings</strong> &rarr; <strong>Developer Options</strong> &rarr; enable <strong>Wireless debugging</strong>.</div>
+                <div>2. Tap <strong>"Pair device with pairing code"</strong>. Note the <strong>IP address & Port</strong> and <strong>Wi-Fi pairing code</strong> shown in the popup.</div>
+                <div>3. Enter both below and click <strong>Pair Device Wirelessly</strong>:</div>
+              </div>
+
+              <form onSubmit={handlePairWifiAdb} className="grid grid-cols-1 sm:grid-cols-12 gap-3 pt-1">
+                <div className="sm:col-span-6">
+                  <label className="block text-[11px] font-semibold text-slate-400 mb-1">Pairing IP & Port</label>
+                  <input
+                    type="text"
+                    value={pairingIpPort}
+                    onChange={(e) => setPairingIpPort(e.target.value)}
+                    placeholder="e.g. 192.168.100.31:37281"
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono"
+                  />
+                </div>
+                <div className="sm:col-span-3">
+                  <label className="block text-[11px] font-semibold text-slate-400 mb-1">6-Digit Pairing Code</label>
+                  <input
+                    type="text"
+                    value={pairingCode}
+                    onChange={(e) => setPairingCode(e.target.value)}
+                    placeholder="e.g. 123456"
+                    maxLength={8}
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono text-center tracking-widest font-bold"
+                  />
+                </div>
+                <div className="sm:col-span-3 flex items-end">
+                  <button
+                    type="submit"
+                    disabled={isPairing}
+                    className="w-full flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-bold transition-colors cursor-pointer shadow-lg shadow-emerald-950/40"
+                  >
+                    <KeyRound className="w-3.5 h-3.5" />
+                    <span>{isPairing ? 'Pairing...' : 'Pair Device'}</span>
+                  </button>
+                </div>
+              </form>
+              {pairingMessage && (
+                <p className="text-[11px] text-emerald-400 mt-2 font-mono p-2 rounded bg-slate-950/60 border border-slate-800">
+                  {pairingMessage}
+                </p>
+              )}
+            </div>
+          ) : (
+            /* Mode 2: Direct Connect (Port 5555 or existing paired port) */
+            <div className="space-y-3">
+              <p className="text-[11px] text-slate-400">
+                Connect directly if port 5555 is open or if previously paired with this machine:
+              </p>
+              <form onSubmit={handleConnectWifiAdb} className="flex gap-2">
+                <input
+                  type="text"
+                  value={wifiAdbIp}
+                  onChange={(e) => setWifiAdbIp(e.target.value)}
+                  placeholder="e.g. 192.168.100.31:5555"
+                  className="flex-1 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono"
+                />
+                <button
+                  type="submit"
+                  disabled={connectingAdb}
+                  className="flex items-center gap-1.5 px-5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-white text-xs font-bold transition-colors cursor-pointer"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>{connectingAdb ? 'Connecting...' : 'Connect'}</span>
+                </button>
+              </form>
+              {adbConnectMessage && (
+                <p className="text-[11px] text-cyan-400 mt-2 font-mono p-2 rounded bg-slate-950/60 border border-slate-800">
+                  {adbConnectMessage}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Discovered Device Cards List */}
       {loading ? (
-        <div className="p-12 text-center text-xs text-slate-500">Querying real system hardware bus...</div>
+        <div className="p-12 text-center text-xs text-slate-400 flex flex-col items-center justify-center gap-3">
+          <RefreshCw className="w-6 h-6 animate-spin text-cyan-400" />
+          <span>Interrogating real network interfaces and subnet ARP tables...</span>
+        </div>
       ) : devices.length > 0 ? (
         <div className="space-y-3 mb-8">
           <div className="px-1 text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
-            <span>Detected Real Targets ({devices.length})</span>
-            <span className="text-[10px] text-emerald-400 font-medium">Ready for Audit</span>
+            <span>
+              {module === 'wireless' ? `Discovered Wi-Fi Devices (${devices.length})` : `Detected Real Targets (${devices.length})`}
+            </span>
+            <span className="text-[10px] text-emerald-400 font-medium">Ready for Audit Authorization</span>
           </div>
 
           {devices.map((device) => {
@@ -208,15 +408,11 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
                   <div
                     className={`flex items-center justify-center w-11 h-11 rounded-xl border ${
                       isSelected
-                        ? 'bg-cyan-500/10 border-cyan-500/40 text-cyan-400'
-                        : 'bg-slate-800/80 border-slate-700 text-slate-400'
+                        ? 'bg-cyan-500/10 border-cyan-500/40'
+                        : 'bg-slate-800/80 border-slate-700'
                     }`}
                   >
-                    {device.connection_mode === 'usb' ? (
-                      <Usb className="w-5 h-5" />
-                    ) : (
-                      <Wifi className="w-5 h-5" />
-                    )}
+                    {getDeviceIcon(device)}
                   </div>
 
                   <div>
@@ -231,15 +427,21 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
                       >
                         {device.status}
                       </span>
+                      {device.vendor && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+                          {device.vendor}
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
                       <span>
-                        <strong className="text-slate-500">Target / ID:</strong> {device.ip_or_serial}
+                        <strong className="text-slate-500">Target IP / ID:</strong>{' '}
+                        <span className="font-mono text-cyan-300">{device.ip_or_serial}</span>
                       </span>
                       {device.os_version && (
                         <span>
-                          <strong className="text-slate-500">Config:</strong> {device.os_version}
+                          <strong className="text-slate-500">Details:</strong> {device.os_version}
                         </span>
                       )}
                       <span>
@@ -261,7 +463,7 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
           })}
         </div>
       ) : (
-        /* Empty State with Actionable Guidance */
+        /* Empty State with USB connection guidance for Android / iOS */
         <div className="mb-8 p-6 sm:p-8 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-xl">
           <div className="flex items-start gap-4 mb-6">
             <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 shrink-0">
@@ -270,14 +472,14 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
             <div>
               <h3 className="text-base font-bold text-white mb-1">
                 {module === 'android'
-                  ? 'No Android Device Connected via USB'
+                  ? 'No Android Device Connected via USB or Wireless ADB'
                   : module === 'ios'
                   ? 'No iOS Device Connected via USB'
                   : 'No Wireless Network Interface Detected'}
               </h3>
               <p className="text-xs text-slate-400 leading-relaxed">
                 {module === 'android'
-                  ? 'The system ADB daemon searched your USB controllers and found no active device. Follow the real setup steps below to connect your Android phone:'
+                  ? 'Use the Wireless Debugging box above to connect without cables, or follow the physical cable steps below:'
                   : module === 'ios'
                   ? 'No Apple iPhone or iPad was detected on the USB controller. Connect an iOS device via cable, unlock the screen, and tap "Trust This Computer".'
                   : 'Ensure your WiFi adapter is powered on and connected to an access point.'}
@@ -287,10 +489,10 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
 
           {/* Android USB Connection Steps */}
           {module === 'android' && (
-            <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-850 mb-6 space-y-2.5 text-xs text-slate-300">
+            <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-850 space-y-2.5 text-xs text-slate-300">
               <h4 className="font-bold text-cyan-300 text-xs mb-2 flex items-center gap-1.5">
                 <HelpCircle className="w-4 h-4" />
-                <span>How to connect your physical Android phone:</span>
+                <span>Physical USB Cable Connection Guide:</span>
               </h4>
               <div className="flex items-start gap-2">
                 <span className="w-5 h-5 rounded-full bg-cyan-950 text-cyan-400 flex items-center justify-center text-[10px] font-bold shrink-0">1</span>
@@ -314,38 +516,6 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
               </div>
             </div>
           )}
-
-          {/* Option B: Wireless ADB Connection */}
-          {module === 'android' && (
-            <div className="p-4 rounded-xl bg-slate-950/40 border border-slate-800/80">
-              <h4 className="text-xs font-bold text-slate-200 mb-2">
-                Or Connect via Wireless ADB (IP:Port)
-              </h4>
-              <p className="text-[11px] text-slate-400 mb-3">
-                If your Android phone supports Wireless Debugging on your local WiFi (e.g., <code>192.168.100.X:5555</code>):
-              </p>
-              <form onSubmit={handleConnectWifiAdb} className="flex gap-2">
-                <input
-                  type="text"
-                  value={wifiAdbIp}
-                  onChange={(e) => setWifiAdbIp(e.target.value)}
-                  placeholder="e.g. 192.168.100.50:5555"
-                  className="flex-1 px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-cyan-500"
-                />
-                <button
-                  type="submit"
-                  disabled={connectingAdb}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-white text-xs font-bold transition-colors cursor-pointer"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>{connectingAdb ? 'Connecting...' : 'Connect'}</span>
-                </button>
-              </form>
-              {adbConnectMessage && (
-                <p className="text-[11px] text-cyan-400 mt-2 font-mono">{adbConnectMessage}</p>
-              )}
-            </div>
-          )}
         </div>
       )}
 
@@ -358,52 +528,53 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
         <p className="text-[11px] text-slate-400 mb-3">
           Audit any reachable device, smartphone, or router IP address directly on your local network:
         </p>
-        <form onSubmit={handleAddManualTarget} className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
-          <div className="sm:col-span-4">
-            <input
-              type="text"
-              value={manualName}
-              onChange={(e) => setManualName(e.target.value)}
-              placeholder="Device Label (e.g. My Phone)"
-              className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-cyan-500"
-            />
-          </div>
-          <div className="sm:col-span-5">
-            <input
-              type="text"
-              value={manualIp}
-              onChange={(e) => setManualIp(e.target.value)}
-              placeholder="IP Address (e.g. 192.168.100.50)"
-              required
-              className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono"
-            />
-          </div>
-          <div className="sm:col-span-3">
-            <button
-              type="submit"
-              className="w-full flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-cyan-400 border border-slate-700 text-xs font-bold transition-colors cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Target</span>
-            </button>
-          </div>
+        <form onSubmit={handleAddManualTarget} className="flex flex-col sm:flex-row gap-3">
+          <input
+            type="text"
+            value={manualName}
+            onChange={(e) => setManualName(e.target.value)}
+            placeholder="Device Label (e.g. My Phone)"
+            className="flex-1 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-cyan-500"
+          />
+          <input
+            type="text"
+            value={manualIp}
+            onChange={(e) => setManualIp(e.target.value)}
+            placeholder="IP Address (e.g. 192.168.100.50)"
+            className="flex-1 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono"
+          />
+          <button
+            type="submit"
+            className="flex items-center justify-center gap-1.5 px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 text-xs font-bold transition-colors cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Target</span>
+          </button>
         </form>
       </div>
 
-      {/* Action Footer */}
-      <div className="flex items-center justify-between pt-6 border-t border-slate-800">
-        <p className="text-xs text-slate-500">
-          {selectedDevice
-            ? `Target selected: ${selectedDevice.name}`
-            : 'Select or add a real target to proceed.'}
-        </p>
+      {/* Bottom Sticky Action Bar: Selected Target & Continue to Scan Depth */}
+      <div className="pt-4 border-t border-slate-800/80 flex items-center justify-between gap-4">
+        <div>
+          {selectedDevice ? (
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+              <span className="text-xs text-slate-300">
+                Selected Target: <strong className="text-white">{selectedDevice.name}</strong>{' '}
+                <span className="font-mono text-cyan-400">({selectedDevice.ip_or_serial})</span>
+              </span>
+            </div>
+          ) : (
+            <span className="text-xs text-slate-500">Select or add a real target to proceed.</span>
+          )}
+        </div>
 
         <button
           disabled={!selectedDevice}
           onClick={() => selectedDevice && onSelectDevice(selectedDevice)}
-          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${
+          className={`flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-bold tracking-wide transition-all ${
             selectedDevice
-              ? 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/25 cursor-pointer'
+              ? 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/30 cursor-pointer'
               : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
           }`}
         >
@@ -414,3 +585,5 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
     </div>
   );
 };
+
+export default DeviceSelect;

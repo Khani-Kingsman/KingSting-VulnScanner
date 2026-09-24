@@ -4,10 +4,61 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <title>KING STING VULNScanner — Security Audit Suite</title>
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        background-color: #080b10;
+        color: #e2e8f0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        overflow-x: hidden;
+      }
+      .initial-loader {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(circle at top, #0f172a 0%, #080b10 100%);
+        text-align: center;
+        padding: 20px;
+      }
+      .initial-logo {
+        width: 48px;
+        height: 48px;
+        border: 2px solid #06b6d4;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 16px;
+        box-shadow: 0 0 20px rgba(6, 182, 212, 0.3);
+        animation: loader-pulse 2s infinite ease-in-out;
+      }
+      @keyframes loader-pulse {
+        0%, 100% { transform: scale(1); opacity: 0.8; }
+        50% { transform: scale(1.05); opacity: 1; box-shadow: 0 0 30px rgba(6, 182, 212, 0.6); }
+      }
+    </style>
   </head>
-  <body>
-    <div id="root"></div>
+  <body style="background-color: #080b10;">
+    <div id="root">
+      <div class="initial-loader">
+        <div class="initial-logo">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="m9 12 2 2 4-4"/>
+          </svg>
+        </div>
+        <div style="font-size: 18px; font-weight: 800; color: #f8fafc; letter-spacing: 1px; margin-bottom: 6px;">
+          KING STING VULNScanner
+        </div>
+        <div style="font-size: 12px; color: #64748b; font-family: monospace;">
+          Initializing Cyber Defense Engine...
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

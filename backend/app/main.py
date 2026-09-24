@@ -10,6 +10,7 @@ from typing import List, Dict, Any, Optional
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from app.config import APP_TITLE, APP_VERSION, API_HOST, API_PORT, DB_PATH
 from app.models.scan import ScanRequest, ScanResult, CheckStep, TargetDevice, ScanDepth, ScanModule
@@ -21,7 +22,8 @@ from app.discovery.real_detector import (
     detect_android_devices,
     detect_wireless_networks,
     detect_ios_devices,
-    connect_adb_wifi
+    connect_adb_wifi,
+    pair_adb_wifi
 )
 
 init_db()
@@ -30,7 +32,7 @@ app = FastAPI(title=APP_TITLE, version=APP_VERSION)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origin_regex=r".*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -41,6 +43,10 @@ ws_clients: Dict[str, List[WebSocket]] = {}
 
 class WifiAdbRequest(BaseModel):
     ip_port: str
+
+class WifiAdbPairRequest(BaseModel):
+    ip_port: str
+    pairing_code: str
 
 @app.get("/api/health")
 async def health_check():
@@ -64,8 +70,13 @@ async def get_devices(module: ScanModule):
     else:
         raise HTTPException(status_code=400, detail="Invalid scan module")
 
+@app.post("/api/devices/pair-wifi-adb")
+async def pair_wifi_adb_endpoint(req: WifiAdbPairRequest):
+    """Pairs with an Android device wirelessly using a 6-digit pairing code (Android 11+)."""
+    return pair_adb_wifi(req.ip_port, req.pairing_code)
+
 @app.post("/api/devices/connect-wifi-adb")
-async def connect_wifi_adb(req: WifiAdbRequest):
+async def connect_wifi_adb_endpoint(req: WifiAdbRequest):
     """Attempts real wireless ADB connection to target IP:Port."""
     result = connect_adb_wifi(req.ip_port)
     return result
@@ -165,6 +176,26 @@ async def websocket_scan_endpoint(websocket: WebSocket, scan_id: str):
             ws_clients[scan_id].remove(websocket)
             if not ws_clients[scan_id]:
                 del ws_clients[scan_id]
+
+DIST_DIR = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
+if (DIST_DIR / "assets").exists():
+    app.mount("/assets", StaticFiles(directory=str(DIST_DIR / "assets")), name="assets")
+
+@app.get("/{full_path:path}")
+async def serve_frontend(full_path: str):
+    # Do not intercept API or WebSocket paths
+    if full_path.startswith("api") or full_path.startswith("ws"):
+        raise HTTPException(status_code=404, detail="Not Found")
+    
+    file_path = DIST_DIR / full_path
+    if full_path and file_path.is_file():
+        return FileResponse(file_path)
+    
+    index_file = DIST_DIR / "index.html"
+    if index_file.exists():
+        return FileResponse(index_file)
+        
+    return {"message": "KING STING VULNScanner API Server", "status": "online"}
 
 if __name__ == "__main__":
     import uvicorn

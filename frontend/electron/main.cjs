@@ -1,5 +1,6 @@
 const { app, BrowserWindow, shell, ipcMain } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const { spawn } = require('child_process');
 const http = require('http');
 
@@ -7,16 +8,24 @@ let mainWindow = null;
 let pythonProcess = null;
 
 const PYTHON_PORT = 8765;
-const DEV_URL = 'http://localhost:5173';
+const DEV_URL = 'http://127.0.0.1:5173';
 
 function checkBackendHealth(callback) {
+  let called = false;
+  const safeCallback = (val) => {
+    if (!called) {
+      called = true;
+      callback(val);
+    }
+  };
+
   const req = http.get(`http://127.0.0.1:${PYTHON_PORT}/api/health`, (res) => {
-    callback(res.statusCode === 200);
+    safeCallback(res.statusCode === 200);
   });
-  req.on('error', () => callback(false));
-  req.setTimeout(800, () => {
+  req.on('error', () => safeCallback(false));
+  req.setTimeout(1500, () => {
     req.destroy();
-    callback(false);
+    safeCallback(false);
   });
 }
 
@@ -63,22 +72,29 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      webSecurity: false
     }
   });
 
   // Remove standard menu bar for custom cyber dark UI
   mainWindow.setMenuBarVisibility(false);
 
-  // Attempt to load dev server or fall back to dist
-  const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+  const distPath = path.join(__dirname, '../dist/index.html');
+  const preferDev = process.env.ELECTRON_DEV === '1';
 
-  if (isDev) {
+  if (preferDev) {
     mainWindow.loadURL(DEV_URL).catch(() => {
-      mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+      console.log('Dev server not available, loading compiled dist/index.html...');
+      mainWindow.loadFile(distPath);
     });
+  } else if (fs.existsSync(distPath)) {
+    console.log('Loading compiled frontend from:', distPath);
+    mainWindow.loadFile(distPath);
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    mainWindow.loadURL(DEV_URL).catch(() => {
+      mainWindow.loadFile(distPath);
+    });
   }
 
   mainWindow.once('ready-to-show', () => {

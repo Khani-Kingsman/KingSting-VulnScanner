@@ -1,137 +1,201 @@
-# KING STING VULNScanner — Multi-Platform Device Security Audit Suite
+# KING STING VULNScanner
 
-[![Phase](https://img.shields.io/badge/Phase-1%20UI%2FUX%20Interactive%20Desktop%20Shell-00f2fe.svg)](#)
-[![Compliance](https://img.shields.io/badge/Compliance-Strict%20Defensive%20Auditing-10b981.svg)](#)
-[![Stack](https://img.shields.io/badge/Stack-Electron%20%7C%20React%20%7C%20FastAPI%20%7C%20ReportLab-blue.svg)](#)
+Multi-Platform Device Security Audit Suite
 
-**KING STING VULNScanner** (formerly codenamed *"Guardian"*) is a professional desktop security audit application designed for individuals and organizations (BYOD/IT Security Programs) to conduct structured, defensive, and non-intrusive security evaluations against devices they own or have explicit written authorization to test.
-
----
-
-## 🛡️ Non-Negotiable Ground Rules (§2)
-
-Built directly into the core application workflow, not just the documentation:
-
-1. **Mandatory Authorization Gate**: A persistent consent and ownership confirmation is enforced before any scan can begin.
-2. **Strictly Defensive**: 100% detection, configuration analysis, and vulnerability reporting. Zero weaponized exploit execution, zero payload delivery, and zero authentication bypasses.
-3. **Legitimate Threat Intelligence**: CVE cross-referencing maps exclusively to official public databases (NVD, Android Security Bulletins, Apple Security Advisories).
-4. **Immutable Local Audit Trail**: Every initiated scan session is recorded in a local SQLite database (`data/kingsting_audit.db`) with cryptographic SHA-256 signatures for compliance verification.
+[![Status](https://img.shields.io/badge/Status-Active%20Prototype%20%2F%20WIP-orange.svg)](#project-status)
+[![Type](https://img.shields.io/badge/Audit%20Model-Defensive%20%26%20Non--Intrusive-emerald.svg)](#defensive-audit-model)
+[![Architecture](https://img.shields.io/badge/Stack-FastAPI%20%7C%20Electron%20%7C%20React%20%7C%20Tailwind-blue.svg)](#technical-architecture)
+[![License](https://img.shields.io/badge/License-MIT-lightgrey.svg)](LICENSE)
 
 ---
 
-## 🚀 Key Modules & Capabilities
+> ### ⚠️ Project Status: Active Prototype / Work In Progress (WIP)
+> This repository contains an **early-stage architectural prototype** of KING STING VULNScanner. Core device interrogation modules, wireless discovery routines, and compliance workflows are actively being built and stabilized.
+>
+> **Notice**: This software is not yet in its finalized production state. It is undergoing active development and internal testing. Production-grade releases with expanded scanning capabilities, full driver abstraction, and broader device support will be rolled out systematically.
 
-### 1. Android Module
-- **OS & Security Patch Baseline**: Verifies build currency, patch lag, and kernel consistency.
-- **Root & Privilege Integrity**: Detects `su` binaries, Magisk hide traces, and unlocked bootloaders.
-- **Exposed Debug Interfaces**: Audits active ADB wireless daemons (TCP port 5555) and insecure USB debugging.
-- **Storage Encryption**: Verifies File-Based Encryption (FBE) and StrongBox Keymaster hardware backing.
-- **App Permission Overreach**: Flags sideloaded applications with excessive Accessibility, SMS, or Overlay privileges.
-- **Vulnerability Intelligence**: Cross-references detected Android build fingerprints against documented CVEs.
+---
 
-### 2. Wireless Network Module
-- **Beacon & Encryption Audit**: Evaluates 802.11 cipher suites (WPA2/WPA3), Protected Management Frames (PMF), and vulnerable WPS PIN settings.
-- **Subnet Node Enumeration**: Discovers active endpoints across local `/24` IPv4 subnets.
-- **OS Fingerprinting**: Profiles connected devices (routers, workstations, mobile endpoints, IoT smart hardware).
-- **Service Attack Surface & Port Scan**: Flags cleartext or obsolete services (Telnet:23, SMB:445, unauthenticated RTSP:554).
-- **Dynamic Live Risk Board**: Aggregates discovered network risks in real-time as the scan progresses.
+## Overview
+
+**KING STING VULNScanner** is a cross-platform desktop security audit suite engineered for security professionals, IT administrators, and individuals managing BYOD environments. The application provides structured, defensible, and non-destructive posture evaluations across three primary vectors:
+
+1. **Wireless Local Subnets & Network Infrastructure**
+2. **Android Mobile Endpoints (Physical USB & Wireless ADB)**
+3. **iOS & iPadOS Hardware & Profiles**
+
+Audits produce structured telemetry, identify misconfigurations or unpatched components, correlate findings against official CVE bulletins, and generate signed compliance records.
+
+---
+
+## Defensive Audit Model
+
+All assessment routines adhere strictly to non-destructive auditing standards:
+
+* **Affirmative Authorization Gate**: Scans require explicit confirmation of device ownership or written testing authorization. If permission is denied (\Do Not Allow\), execution halts immediately with zero packets or probes dispatched.
+* **Non-Intrusive Telemetry**: The engine performs configuration audits, banner inspection, interface verification, and patch-level analysis. It does not deliver weaponized payloads, attempt exploitation, or deploy authentication bypasses.
+* **Public Threat Intelligence**: Vulnerability correlation maps exclusively to verified public feeds (NVD, Android Security Bulletins, Apple Security Releases).
+* **Cryptographic Audit Trail**: All completed assessments are committed to a local SQLite database (\kingsting_audit.db\) with SHA-256 integrity hashes for audit verification and non-repudiation.
+
+---
+
+## Modules
+
+### 1. Wireless Network Module
+* **WLAN Configuration Audit**: Evaluates active 802.11 beacons, authentication methods (WPA2/WPA3 Personal/Enterprise), cipher suites (CCMP, TKIP), and Protected Management Frames (PMF) enforcement.
+* **Subnet Host Discovery**: Rapid ARP cache interrogation and ICMP/socket discovery across \/24\ IPv4 subnets to enumerate routers, endpoints, smartphones, and IoT hardware.
+* **Gateway Attack Surface Sweep**: Non-blocking TCP connection probing against standard service ports (FTP:21, SSH:22, Telnet:23, DNS:53, HTTP:80, HTTPS:443, SMB:445, RTSP:554, WebProxy:8080).
+* **DNS Resolution Integrity**: Validates consistency between local gateway resolvers and known public secure resolvers (Cloudflare, Google Public DNS) to detect potential redirection or DNS hijacking.
+
+### 2. Android Module
+* **Cable-Free Wireless Interrogation**: Direct integration with Android 11+ Wireless Debugging using 6-digit pairing codes (\db pair\) and direct network ports (\db connect\), enabling full mobile audits without a physical USB cable.
+* **OS & Patch Level Baseline**: Verifies Android OS version currency, Security Patch Level lag, and kernel consistency.
+* **Root & Privilege Integrity**: Checks for binary artifacts (\su\, SuperSU, Magisk traces) and unlocked bootloader status.
+* **Service Exposure**: Audits exposed debug interfaces (unauthorized network ADB daemons on TCP port 5555) and insecure USB configurations.
+* **Permission Overreach**: Evaluates application privilege footprints, identifying sideloaded packages requesting high-risk capabilities (Accessibility Services, Device Admin, SMS/Call Logs).
 
 ### 3. iOS & iPadOS Module
-- **OS Cadence & Patch Level**: Compares active iOS build against current Apple zero-day mitigation releases.
-- **Jailbreak & Sandbox Integrity**: Inspects sandbox enforcement, dyld hooks, and `/private` container isolation.
-- **Configuration Profiles & MDM**: Identifies untrusted enterprise mobile provisioning profiles and sideloaded certificates.
-- **Root CA Trust Store**: Scans for user-installed root CA certificates and potential SSL proxy interception anchors.
-- **Apple Advisory CVE Matching**: Correlates system state with documented WebKit and Kernel advisories.
+* **Build & Firmware Cadence**: Validates iOS/iPadOS release version against vendor security bulletins and active zero-day advisories.
+* **Sandbox Integrity**: Verifies containerization and integrity of filesystem isolation boundaries.
+* **Configuration Profiles & MDM**: Identifies untrusted mobile device management (MDM) payloads, enterprise distribution certificates, and sideloaded provisioning profiles.
+* **Root CA Trust Store Audit**: Flags user-installed root Certificate Authorities capable of enabling SSL/TLS proxy interception.
 
 ---
 
-## 🏗️ Architecture
+## Technical Architecture
 
-```
-d:\VulnScanner\
+\d:\VulnScanner\
 ├── backend/
 │   ├── app/
-│   │   ├── main.py                  # FastAPI service (REST + WebSocket streaming)
-│   │   ├── config.py                # Environment paths and configurations
-│   │   ├── models/                  # Pydantic models (ScanRequest, Finding, AuditEntry)
-│   │   ├── engine/                  # Scan lifecycle manager & simulated engine
-│   │   │   ├── base.py
-│   │   │   ├── mock_android.py
-│   │   │   ├── mock_wireless.py
-│   │   │   ├── mock_ios.py
+│   │   ├── main.py                  # FastAPI REST endpoints, WebSocket streaming, and static SPA serving
+│   │   ├── config.py                # Environment configuration, database paths, and constants
+│   │   ├── models/                  # Pydantic data schemas (TargetDevice, ScanRequest, ScanResult, AuditEntry)
+│   │   ├── discovery/               # Real hardware, network subnet, and ADB pairing detection
+│   │   │   └── real_detector.py
+│   │   ├── engine/                  # Scan lifecycle manager and execution matrix
 │   │   │   └── live_manager.py
-│   │   ├── reports/
-│   │   │   └── pdf_generator.py     # Professional ReportLab PDF report generation
-│   │   └── db/
-│   │       └── audit_log.py         # SQLite persistence for compliance audit trail
-│   ├── data/                        # Generated reports & SQLite database
-│   ├── test_backend.py              # Backend automated verification suite
-│   └── requirements.txt
+│   │   ├── reports/                 # PDF generation engine (ReportLab)
+│   │   │   └── pdf_generator.py
+│   │   └── db/                      # Local SQLite persistence layer
+│   │       └── audit_log.py
+│   ├── data/                        # Local database storage (kingsting_audit.db) and generated PDF files
+│   └── requirements.txt             # Python dependencies
 ├── frontend/
 │   ├── electron/
-│   │   ├── main.cjs                 # Electron process launcher & backend manager
-│   │   └── preload.cjs              # Secure IPC bridge
+│   │   ├── main.cjs                 # Electron process management and native window lifecycle
+│   │   └── preload.cjs              # Context isolation bridge
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── background/          # Cyber Canvas particle & radar background
-│   │   │   ├── layout/              # Topbar, Auditor badge, compliance status
-│   │   │   ├── consent/             # Mandatory authorization modal
-│   │   │   ├── modules/             # Module cards, Device discovery, Scan levels,
-│   │   │   │                        # Active scan console, and Results hub
-│   │   │   ├── history/             # Audit trail drawer
-│   │   │   └── profile/             # Auditor profile settings
-│   │   ├── services/api.ts          # REST & WebSocket client
-│   │   ├── types/                   # TypeScript interfaces
-│   │   ├── App.tsx
-│   │   └── index.css                # Tailwind CSS v4 & custom cyber themes
+│   │   │   ├── background/          # Particle network canvas background
+│   │   │   ├── consent/             # Mandatory security audit authorization modal
+│   │   │   ├── modules/             # Module selectors, device interrogation, depth picker, active scan console
+│   │   │   ├── history/             # Audit log drawer and compliance records
+│   │   │   └── layout/              # Navigation bar, auditor profile badge, engine health indicator
+│   │   ├── services/api.ts          # Backend HTTP and WebSocket client
+│   │   ├── types/                   # TypeScript interface definitions
+│   │   └── index.css                # Tailwind CSS v4 stylesheets
 │   ├── package.json
 │   └── vite.config.ts
-├── run_desktop.bat                  # One-click Windows desktop launcher
+├── run_desktop.bat                  # Desktop application launcher
 └── README.md
-```
-
+\
 ---
 
-## ⚡ Quickstart & Running the Application
+## Getting Started
 
-### 1. Launch Desktop App (Windows)
-Double-click `run_desktop.bat` or run:
-```powershell
-.\run_desktop.bat
-```
+### Prerequisites
+* **Python**: 3.10+ (with \pip\)
+* **Node.js**: 18+ (with pm\)
+* **Operating System**: Windows 10/11 (macOS / Linux support planned in Phase 2)
 
-### 2. Run in Development Mode (Browser / HMR)
-**Terminal 1 (Backend):**
-```powershell
-python backend/app/main.py
-```
+### Installation
 
-**Terminal 2 (Frontend):**
-```powershell
+1. **Clone the Repository**
+   \\ash
+   git clone https://github.com/Khani-Kingsman/KingSting-VulnScanner.git
+   cd KingSting-VulnScanner
+   \
+2. **Set Up Python Backend**
+   \\ash
+   cd backend
+   pip install -r requirements.txt
+   \
+3. **Install Frontend & Electron Dependencies**
+   \\ash
+   cd ../frontend
+   npm install
+   npm run build
+   \
+---
+
+## Running the Application
+
+### Option A: Complete Desktop Application (Recommended)
+Launch the Python backend and Electron desktop shell together:
+\\cmd
+run_desktop.bat
+\Alternatively, from PowerShell:
+\\powershell
+# Terminal 1: Backend
+cd backend
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8765
+
+# Terminal 2: Electron Desktop App
+cd frontend
+npm run electron
+\
+### Option B: Web Browser Access
+The FastAPI backend serves the compiled frontend directly at root:
+\\powershell
+cd backend
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8765
+\Open your web browser and navigate to:
+\http://127.0.0.1:8765
+\
+---
+
+## Development & Testing
+
+### Hot-Reload Development Mode
+For UI/UX development with instant Vite HMR:
+\\powershell
+# Terminal 1: Backend API
+cd backend
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8765 --reload
+
+# Terminal 2: Frontend Dev Server
 cd frontend
 npm run dev
-```
-Navigate to `http://localhost:5173` in your browser.
+\Access the Vite development server at \http://127.0.0.1:5173\.
 
-### 3. Verify Backend Engine & PDF Generation
-```powershell
+### Automated Verification
+Run backend unit and integration checks:
+\\powershell
 python backend/test_backend.py
-```
+\
+---
+
+## Development Roadmap
+
+* [x] **Phase 1: Architecture & UI Prototype**
+  * Interactive dark-mode security console with animated telemetry background.
+  * Real subnet ARP sweep and active connected device identification.
+  * Cable-free Android 11+ Wireless Debugging pairing (\db pair\ / \db connect\).
+  * Mandatory Permission Notification & Consent Gate.
+  * Local SQLite audit logging with SHA-256 non-repudiation hashes.
+  * Native ReportLab PDF report generation.
+* [ ] **Phase 2: Scanning Engine Hardening (Upcoming)**
+  * Native raw packet inspection drivers (Scapy/libpcap abstraction).
+  * Direct asynchronous NVD REST API v2 CVE enrichment.
+  * Native Apple MobileDevice protocol integration via \pymobiledevice3\.
+  * Deep APK manifest parsing and permission graph analysis.
+* [ ] **Phase 3: Production Release**
+  * One-click installers (Windows MSI / macOS DMG / Linux AppImage).
+  * Role-based auditor credential management.
+  * Multi-target automated batch scanning.
 
 ---
 
-## 📄 Exportable PDF Audit Reports
+## License
 
-Every completed scan allows instant export of a standardized, boardroom-ready PDF audit report containing:
-- **Scope & Asset Metadata**: Serial/IP, OS version, interface, auditor name, and organization.
-- **Security Scorecard**: 0–100 posture score with A–F grade and control evaluation summary.
-- **Severity-Tiered Findings**: Critical, High, Medium, Low, and Info breakdowns with full CVE references.
-- **Actionable Remediation**: Exact step-by-step instructions to harden each flagged control.
-- **Cryptographic Sign-Off**: Non-repudiation audit hash and compliance disclaimer.
-
----
-
-## 🗺️ Roadmap
-- **Phase 1 (Complete)**: Full interactive desktop UI/UX shell, simulated scan engine, WebSocket real-time event streaming, ReportLab PDF report generation, and SQLite audit logging.
-- **Phase 1.5**: Design review, UX ergonomics validation, and visual accessibility audits.
-- **Phase 2**: Modular integration of live non-intrusive scanning libraries (`nmap`, `adb`, `libimobiledevice`, and direct NVD CVE API querying).
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.

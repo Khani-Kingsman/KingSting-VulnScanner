@@ -179,6 +179,7 @@ export const App: React.FC = () => {
       <ConsentModal
         isOpen={isConsentOpen}
         targetName={activeTarget?.name || 'Selected Device'}
+        targetIp={activeTarget?.ip_or_serial}
         moduleName={activeModule || 'General'}
         onConfirm={handleConfirmScan}
         onCancel={() => setIsConsentOpen(false)}

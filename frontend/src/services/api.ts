@@ -38,6 +38,24 @@ export async function startScan(request: ScanRequest): Promise<{ status: string;
   return await res.json();
 }
 
+export async function pairWifiAdb(ipPort: string, pairingCode: string): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`${API_BASE}/api/devices/pair-wifi-adb`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ip_port: ipPort, pairing_code: pairingCode })
+  });
+  return await res.json();
+}
+
+export async function connectWifiAdb(ipPort: string): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`${API_BASE}/api/devices/connect-wifi-adb`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ip_port: ipPort })
+  });
+  return await res.json();
+}
+
 export async function getScanResult(scanId: string): Promise<ScanResult> {
   const res = await fetch(`${API_BASE}/api/scans/${scanId}`);
   if (!res.ok) throw new Error('Failed to retrieve scan result');
