@@ -1,16 +1,17 @@
 # KING STING VULNScanner
 
-Multi-Platform Device Security Audit Suite
+### Multi-Platform Device Security Audit Suite
 
 [![Status](https://img.shields.io/badge/Status-Active%20Prototype%20%2F%20WIP-orange.svg)](#project-status)
 [![Type](https://img.shields.io/badge/Audit%20Model-Defensive%20%26%20Non--Intrusive-emerald.svg)](#defensive-audit-model)
-[![Architecture](https://img.shields.io/badge/Stack-FastAPI%20%7C%20Electron%20%7C%20React%20%7C%20Tailwind-blue.svg)](#technical-architecture)
+[![Stack](https://img.shields.io/badge/Stack-FastAPI%20%7C%20Electron%20%7C%20React%20%7C%20Tailwind-blue.svg)](#technical-architecture)
 [![License](https://img.shields.io/badge/License-MIT-lightgrey.svg)](LICENSE)
 
 ---
 
-> ### ⚠️ Project Status: Active Prototype / Work In Progress (WIP)
-> This repository contains an **early-stage architectural prototype** of KING STING VULNScanner. Core device interrogation modules, wireless discovery routines, and compliance workflows are actively being built and stabilized.
+> [!WARNING]
+> ### Project Status: Active Prototype / Work In Progress (WIP)
+> This repository contains an **early-stage architectural prototype** of KING STING VULNScanner. Core device interrogation modules, wireless discovery routines, and compliance workflows are actively undergoing stabilization and development.
 >
 > **Notice**: This software is not yet in its finalized production state. It is undergoing active development and internal testing. Production-grade releases with expanded scanning capabilities, full driver abstraction, and broader device support will be rolled out systematically.
 
@@ -32,10 +33,10 @@ Audits produce structured telemetry, identify misconfigurations or unpatched com
 
 All assessment routines adhere strictly to non-destructive auditing standards:
 
-* **Affirmative Authorization Gate**: Scans require explicit confirmation of device ownership or written testing authorization. If permission is denied (\Do Not Allow\), execution halts immediately with zero packets or probes dispatched.
+* **Affirmative Authorization Gate**: Scans require explicit confirmation of device ownership or written testing authorization. If permission is denied (`Do Not Allow`), execution halts immediately with zero packets or probes dispatched.
 * **Non-Intrusive Telemetry**: The engine performs configuration audits, banner inspection, interface verification, and patch-level analysis. It does not deliver weaponized payloads, attempt exploitation, or deploy authentication bypasses.
 * **Public Threat Intelligence**: Vulnerability correlation maps exclusively to verified public feeds (NVD, Android Security Bulletins, Apple Security Releases).
-* **Cryptographic Audit Trail**: All completed assessments are committed to a local SQLite database (\kingsting_audit.db\) with SHA-256 integrity hashes for audit verification and non-repudiation.
+* **Cryptographic Audit Trail**: All completed assessments are committed to a local SQLite database (`kingsting_audit.db`) with SHA-256 integrity hashes for audit verification and non-repudiation.
 
 ---
 
@@ -43,14 +44,14 @@ All assessment routines adhere strictly to non-destructive auditing standards:
 
 ### 1. Wireless Network Module
 * **WLAN Configuration Audit**: Evaluates active 802.11 beacons, authentication methods (WPA2/WPA3 Personal/Enterprise), cipher suites (CCMP, TKIP), and Protected Management Frames (PMF) enforcement.
-* **Subnet Host Discovery**: Rapid ARP cache interrogation and ICMP/socket discovery across \/24\ IPv4 subnets to enumerate routers, endpoints, smartphones, and IoT hardware.
+* **Subnet Host Discovery**: Rapid ARP cache interrogation and ICMP/socket discovery across `/24` IPv4 subnets to enumerate routers, endpoints, smartphones, and IoT hardware.
 * **Gateway Attack Surface Sweep**: Non-blocking TCP connection probing against standard service ports (FTP:21, SSH:22, Telnet:23, DNS:53, HTTP:80, HTTPS:443, SMB:445, RTSP:554, WebProxy:8080).
 * **DNS Resolution Integrity**: Validates consistency between local gateway resolvers and known public secure resolvers (Cloudflare, Google Public DNS) to detect potential redirection or DNS hijacking.
 
 ### 2. Android Module
-* **Cable-Free Wireless Interrogation**: Direct integration with Android 11+ Wireless Debugging using 6-digit pairing codes (\db pair\) and direct network ports (\db connect\), enabling full mobile audits without a physical USB cable.
+* **Cable-Free Wireless Interrogation**: Direct integration with Android 11+ Wireless Debugging using 6-digit pairing codes (`adb pair`) and direct network ports (`adb connect`), enabling full mobile audits without a physical USB cable.
 * **OS & Patch Level Baseline**: Verifies Android OS version currency, Security Patch Level lag, and kernel consistency.
-* **Root & Privilege Integrity**: Checks for binary artifacts (\su\, SuperSU, Magisk traces) and unlocked bootloader status.
+* **Root & Privilege Integrity**: Checks for binary artifacts (`su`, SuperSU, Magisk traces) and unlocked bootloader status.
 * **Service Exposure**: Audits exposed debug interfaces (unauthorized network ADB daemons on TCP port 5555) and insecure USB configurations.
 * **Permission Overreach**: Evaluates application privilege footprints, identifying sideloaded packages requesting high-risk capabilities (Accessibility Services, Device Admin, SMS/Call Logs).
 
@@ -64,7 +65,8 @@ All assessment routines adhere strictly to non-destructive auditing standards:
 
 ## Technical Architecture
 
-\d:\VulnScanner\
+```
+KingSting-VulnScanner/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py                  # FastAPI REST endpoints, WebSocket streaming, and static SPA serving
@@ -98,67 +100,77 @@ All assessment routines adhere strictly to non-destructive auditing standards:
 │   └── vite.config.ts
 ├── run_desktop.bat                  # Desktop application launcher
 └── README.md
-\
+```
+
 ---
 
 ## Getting Started
 
 ### Prerequisites
-* **Python**: 3.10+ (with \pip\)
-* **Node.js**: 18+ (with pm\)
+* **Python**: 3.10+ (with `pip`)
+* **Node.js**: 18+ (with `npm`)
 * **Operating System**: Windows 10/11 (macOS / Linux support planned in Phase 2)
 
 ### Installation
 
 1. **Clone the Repository**
-   \\ash
+   ```bash
    git clone https://github.com/Khani-Kingsman/KingSting-VulnScanner.git
    cd KingSting-VulnScanner
-   \
+   ```
+
 2. **Set Up Python Backend**
-   \\ash
+   ```bash
    cd backend
    pip install -r requirements.txt
-   \
+   ```
+
 3. **Install Frontend & Electron Dependencies**
-   \\ash
+   ```bash
    cd ../frontend
    npm install
    npm run build
-   \
+   ```
+
 ---
 
 ## Running the Application
 
 ### Option A: Complete Desktop Application (Recommended)
 Launch the Python backend and Electron desktop shell together:
-\\cmd
+```cmd
 run_desktop.bat
-\Alternatively, from PowerShell:
-\\powershell
-# Terminal 1: Backend
+```
+
+Alternatively, launch services manually:
+```powershell
+# Terminal 1: Backend Service
 cd backend
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8765
 
 # Terminal 2: Electron Desktop App
 cd frontend
 npm run electron
-\
+```
+
 ### Option B: Web Browser Access
 The FastAPI backend serves the compiled frontend directly at root:
-\\powershell
+```powershell
 cd backend
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8765
-\Open your web browser and navigate to:
-\http://127.0.0.1:8765
-\
+```
+Open your browser and navigate to:
+```
+http://127.0.0.1:8765
+```
+
 ---
 
 ## Development & Testing
 
 ### Hot-Reload Development Mode
 For UI/UX development with instant Vite HMR:
-\\powershell
+```powershell
 # Terminal 1: Backend API
 cd backend
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8765 --reload
@@ -166,13 +178,15 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8765 --reload
 # Terminal 2: Frontend Dev Server
 cd frontend
 npm run dev
-\Access the Vite development server at \http://127.0.0.1:5173\.
+```
+Access the Vite development server at `http://127.0.0.1:5173`.
 
 ### Automated Verification
 Run backend unit and integration checks:
-\\powershell
+```powershell
 python backend/test_backend.py
-\
+```
+
 ---
 
 ## Development Roadmap
@@ -180,14 +194,14 @@ python backend/test_backend.py
 * [x] **Phase 1: Architecture & UI Prototype**
   * Interactive dark-mode security console with animated telemetry background.
   * Real subnet ARP sweep and active connected device identification.
-  * Cable-free Android 11+ Wireless Debugging pairing (\db pair\ / \db connect\).
+  * Cable-free Android 11+ Wireless Debugging pairing (`adb pair` / `adb connect`).
   * Mandatory Permission Notification & Consent Gate.
   * Local SQLite audit logging with SHA-256 non-repudiation hashes.
   * Native ReportLab PDF report generation.
 * [ ] **Phase 2: Scanning Engine Hardening (Upcoming)**
   * Native raw packet inspection drivers (Scapy/libpcap abstraction).
   * Direct asynchronous NVD REST API v2 CVE enrichment.
-  * Native Apple MobileDevice protocol integration via \pymobiledevice3\.
+  * Native Apple MobileDevice protocol integration via `pymobiledevice3`.
   * Deep APK manifest parsing and permission graph analysis.
 * [ ] **Phase 3: Production Release**
   * One-click installers (Windows MSI / macOS DMG / Linux AppImage).
