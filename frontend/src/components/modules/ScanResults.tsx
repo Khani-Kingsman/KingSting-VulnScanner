@@ -11,15 +11,23 @@ import {
   FileText,
   Hash,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  ChevronLeft
 } from 'lucide-react';
 
 interface ScanResultsProps {
   result: ScanResult;
   onNewScan: () => void;
+  onBackToTargets?: () => void;
+  onBackToLevels?: () => void;
 }
 
-export const ScanResults: React.FC<ScanResultsProps> = ({ result, onNewScan }) => {
+export const ScanResults: React.FC<ScanResultsProps> = ({
+  result,
+  onNewScan,
+  onBackToTargets,
+  onBackToLevels
+}) => {
   const [filterSeverity, setFilterSeverity] = useState<string>('all');
   const [expandedFindingId, setExpandedFindingId] = useState<string | null>(null);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
@@ -103,13 +111,32 @@ export const ScanResults: React.FC<ScanResultsProps> = ({ result, onNewScan }) =
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
+          {onBackToTargets && (
+            <button
+              onClick={onBackToTargets}
+              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/50 text-xs font-semibold text-slate-300 transition-colors cursor-pointer"
+            >
+              <ChevronLeft className="w-4 h-4 text-cyan-400" />
+              <span>Back to Targets</span>
+            </button>
+          )}
+
+          {onBackToLevels && (
+            <button
+              onClick={onBackToLevels}
+              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/50 text-xs font-semibold text-slate-300 transition-colors cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Change Depth</span>
+            </button>
+          )}
+
           <button
             onClick={onNewScan}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-semibold text-slate-300 transition-colors"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-semibold text-slate-300 transition-colors cursor-pointer"
           >
-            <RotateCcw className="w-4 h-4" />
-            <span>New Audit</span>
+            <span>Home</span>
           </button>
 
           <button

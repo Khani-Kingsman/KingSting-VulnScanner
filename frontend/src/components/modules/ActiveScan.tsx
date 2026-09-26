@@ -11,19 +11,22 @@ import {
   Shield,
   ShieldAlert,
   Terminal,
-  Flame
+  Flame,
+  ChevronLeft
 } from 'lucide-react';
 
 interface ActiveScanProps {
   target: TargetDevice;
   depth: ScanDepth;
   onScanFinished: (result: ScanResult) => void;
+  onBack?: () => void;
 }
 
 export const ActiveScan: React.FC<ActiveScanProps> = ({
   target,
   depth,
-  onScanFinished
+  onScanFinished,
+  onBack
 }) => {
   const [steps, setSteps] = useState<CheckStep[]>([]);
   const [activeStepId, setActiveStepId] = useState<string | null>(null);
@@ -169,7 +172,20 @@ export const ActiveScan: React.FC<ActiveScanProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-4 text-xs">
+          <div className="flex items-center gap-3 text-xs">
+            {onBack && !isCompleted && (
+              <button
+                onClick={() => {
+                  if (window.confirm("Abort current audit and return to scan levels?")) {
+                    onBack();
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-950/50 hover:bg-rose-900/80 border border-rose-800/80 text-rose-300 hover:text-white font-semibold transition-colors cursor-pointer"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                <span>Cancel & Back</span>
+              </button>
+            )}
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-950/60 border border-slate-800 text-slate-300">
               <Clock className="w-3.5 h-3.5 text-slate-400" />
               <span>Elapsed: <strong>{formatTime(elapsedSeconds)}</strong></span>

@@ -7,9 +7,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from typing import List, Dict, Any, Optional
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Query
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from app.config import APP_TITLE, APP_VERSION, API_HOST, API_PORT, DB_PATH
@@ -23,7 +23,10 @@ from app.discovery.real_detector import (
     detect_wireless_networks,
     detect_ios_devices,
     connect_adb_wifi,
-    pair_adb_wifi
+    pair_adb_wifi,
+    generate_mobile_pairing_qr,
+    get_local_ip,
+    REGISTERED_MOBILES
 )
 
 init_db()
@@ -48,6 +51,17 @@ class WifiAdbPairRequest(BaseModel):
     ip_port: str
     pairing_code: str
 
+class MobileRegistrationRequest(BaseModel):
+    client_ip: str
+    model: str
+    vendor: str
+    os_version: str
+    screen: Optional[str] = None
+    hardware: Optional[str] = None
+    user_agent: Optional[str] = None
+    platform: Optional[str] = None
+    network: Optional[str] = None
+
 @app.get("/api/health")
 async def health_check():
     return {
@@ -57,6 +71,56 @@ async def health_check():
         "engine": "real_live_audit_engine",
         "db": str(DB_PATH)
     }
+
+@app.get("/api/devices/qr-code")
+async def get_mobile_pairing_qr_endpoint():
+    """Generates high-contrast cyber QR Code pointing to mobile audit portal."""
+    return generate_mobile_pairing_qr(port=API_PORT)
+
+@app.get("/mobile-audit", response_class=HTMLResponse)
+async def mobile_audit_portal(request: Request):
+    """Serves high-aesthetic mobile web app that fingerprints mobile device and registers it into scanner."""
+    template_path = Path(__file__).resolve().parent / "templates" / "mobile_audit.html"
+    client_ip = request.client.host if request.client else "192.168.100.31"
+    if client_ip in ["127.0.0.1", "::1", "localhost"]:
+        client_ip = get_local_ip()
+
+    if template_path.exists():
+        content = template_path.read_text(encoding="utf-8")
+        content = content.replace("{{CLIENT_IP}}", client_ip)
+        return HTMLResponse(content=content)
+    
+    return HTMLResponse(f"<h3>KING STING Mobile Audit Node</h3><p>Client IP: {client_ip}</p>")
+
+@app.post("/api/devices/register-mobile")
+async def register_mobile_endpoint(req: MobileRegistrationRequest):
+    """Registers a mobile device fingerprint discovered via wireless QR code scan."""
+    data = req.model_dump()
+    REGISTERED_MOBILES[req.client_ip] = data
+    
+    # Broadcast registration event to all listening desktop WebSocket clients
+    targets = []
+    if "active" in ws_clients:
+        targets.extend(ws_clients["active"])
+    
+    for ws in set(targets):
+        try:
+            await ws.send_json({
+                "type": "device_registered",
+                "device": data
+            })
+        except Exception:
+            pass
+
+    dev_title = req.model if req.model.lower().startswith(req.vendor.lower()) else f"{req.vendor} {req.model}"
+    return {
+        "success": True,
+        "message": f"Successfully registered {dev_title} ({req.client_ip}) for defensive audit"
+    }
+
+@app.get("/api/devices/registered-mobiles")
+async def get_registered_mobiles_endpoint():
+    return list(REGISTERED_MOBILES.values())
 
 @app.get("/api/devices/{module}", response_model=List[TargetDevice])
 async def get_devices(module: ScanModule):

@@ -1,7 +1,19 @@
 import type { ScanModule, ScanDepth, TargetDevice, CheckStep, ScanRequest, ScanResult, AuditEntry } from '../types';
 
-const API_BASE = 'http://127.0.0.1:8765';
-const WS_BASE = 'ws://127.0.0.1:8765';
+const getHost = () => {
+  if (typeof window !== 'undefined' && window.location.hostname) {
+    return window.location.hostname;
+  }
+  return '127.0.0.1';
+};
+
+const API_BASE = typeof window !== 'undefined' && window.location.protocol.startsWith('http')
+  ? `${window.location.protocol}//${getHost()}:8765`
+  : 'http://127.0.0.1:8765';
+
+const WS_BASE = typeof window !== 'undefined' && window.location.protocol === 'https:'
+  ? `wss://${getHost()}:8765`
+  : `ws://${getHost()}:8765`;
 
 export async function checkBackendHealth(): Promise<{ status: string; app: string; version: string }> {
   try {
@@ -11,6 +23,12 @@ export async function checkBackendHealth(): Promise<{ status: string; app: strin
   } catch (err) {
     return { status: 'offline', app: 'KING STING VULNScanner', version: 'unknown' };
   }
+}
+
+export async function getMobileQrCode(): Promise<{ qr_image: string; pairing_url: string; local_ip: string }> {
+  const res = await fetch(`${API_BASE}/api/devices/qr-code`);
+  if (!res.ok) throw new Error('Failed to load mobile pairing QR code');
+  return await res.json();
 }
 
 export async function getDevices(module: ScanModule): Promise<TargetDevice[]> {

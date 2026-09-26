@@ -11,7 +11,7 @@ class TargetDevice(BaseModel):
     id: str
     name: str
     module: ScanModule
-    connection_mode: Literal["usb", "wifi", "network", "manual"] = "usb"
+    connection_mode: Literal["usb", "wifi", "network", "manual", "wireless_qr"] = "usb"
     ip_or_serial: str
     os_version: Optional[str] = None
     model_name: Optional[str] = None

@@ -39,7 +39,7 @@ function startPythonBackend() {
     const backendCwd = path.resolve(__dirname, '../../backend');
     console.log('Starting Python backend from cwd:', backendCwd);
 
-    pythonProcess = spawn('python', ['-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', '8765'], {
+    pythonProcess = spawn('python', ['-m', 'uvicorn', 'app.main:app', '--host', '0.0.0.0', '--port', '8765'], {
       cwd: backendCwd,
       stdio: 'pipe',
       detached: false,

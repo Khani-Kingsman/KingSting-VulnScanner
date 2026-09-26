@@ -12,5 +12,5 @@ REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
 APP_TITLE = "KING STING VULNScanner"
 APP_VERSION = "1.0.0-phase1"
-API_HOST = "127.0.0.1"
+API_HOST = "0.0.0.0"
 API_PORT = 8765

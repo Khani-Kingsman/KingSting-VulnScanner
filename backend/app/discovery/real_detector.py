@@ -4,9 +4,14 @@ import os
 import json
 import socket
 import concurrent.futures
+import io
+import base64
+import qrcode
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from app.models.scan import TargetDevice, ScanModule
+
+REGISTERED_MOBILES: Dict[str, Dict[str, Any]] = {}
 
 # Path to self-contained adb.exe
 BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
@@ -17,12 +22,74 @@ def get_adb_command() -> str:
         return str(ADB_PATH)
     return "adb"
 
-def detect_android_devices() -> List[TargetDevice]:
-    """Queries real ADB daemon and Windows PnP to detect connected Android devices."""
-    devices: List[TargetDevice] = []
-    adb_bin = get_adb_command()
+def get_local_ip() -> str:
+    """Discovers outbound LAN IPv4 address for local network pairing."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(('192.168.100.1', 80))
+        return s.getsockname()[0]
+    except Exception:
+        try:
+            s.connect(('8.8.8.8', 80))
+            return s.getsockname()[0]
+        except Exception:
+            return "127.0.0.1"
+    finally:
+        s.close()
 
-    # 1. Run adb devices -l
+def generate_mobile_pairing_qr(port: int = 8765) -> Dict[str, Any]:
+    """Generates a high-contrast cyber QR Code pointing to the mobile onboarding portal."""
+    local_ip = get_local_ip()
+    pairing_url = f"http://{local_ip}:{port}/mobile-audit"
+
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=8,
+        border=2,
+    )
+    qr.add_data(pairing_url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="#00e5ff", back_color="#0b1120")
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    data_url = f"data:image/png;base64,{base64.b64encode(buf.getvalue()).decode('utf-8')}"
+
+    return {
+        "qr_image": data_url,
+        "pairing_url": pairing_url,
+        "local_ip": local_ip
+    }
+
+def detect_android_devices() -> List[TargetDevice]:
+    """Queries registered wireless QR mobiles, ADB daemon, and Windows PnP to detect connected Android devices."""
+    devices: List[TargetDevice] = []
+    seen_ips = set()
+
+    # 1. Registered Mobile Devices via Wireless QR Onboarding (Highest Fidelity)
+    for ip, data in REGISTERED_MOBILES.items():
+        seen_ips.add(ip)
+        vendor = data.get("vendor", "Android")
+        model = data.get("model", "Mobile")
+        dev_name = model if model.lower().startswith(vendor.lower()) else f"{vendor} {model}"
+        os_ver = data.get("os_version", "Android")
+        hw = data.get("hardware", "Mobile Hardware")
+        screen = data.get("screen", "")
+        devices.append(TargetDevice(
+            id=f"and_qr_{ip.replace('.', '_')}",
+            name=f"{dev_name} (QR Linked)",
+            module="android",
+            connection_mode="wireless_qr",
+            ip_or_serial=ip,
+            os_version=f"{os_ver} • {hw}" if hw else os_ver,
+            model_name=model,
+            vendor=vendor,
+            status="online"
+        ))
+
+    # 2. Run adb devices -l
+    adb_bin = get_adb_command()
     try:
         res = subprocess.run([adb_bin, "devices", "-l"], capture_output=True, text=True, timeout=5)
         lines = res.stdout.strip().splitlines()
@@ -81,7 +148,26 @@ def detect_android_devices() -> List[TargetDevice]:
     except Exception as e:
         print(f"Error querying adb: {e}")
 
-    # 2. If no ADB devices found, check Windows PnP to see if a phone is plugged in with USB Debugging OFF!
+    # 3. Add discovered mobile phones on Wi-Fi subnet (if not already added via QR)
+    for ip, host_name in _HOST_CACHE.items():
+        if ip in seen_ips:
+            continue
+        h_lower = host_name.lower()
+        if any(k in h_lower for k in ["s10", "galaxy", "samsung", "a0", "a1", "a2", "a5", "sm-", "pixel", "redmi", "xiaomi", "killer"]):
+            seen_ips.add(ip)
+            devices.append(TargetDevice(
+                id=f"and_wifi_{ip.replace('.', '_')}",
+                name=f"{host_name} (Wi-Fi Detected)",
+                module="android",
+                connection_mode="network",
+                ip_or_serial=ip,
+                os_version="Android Smartphone on Local Subnet",
+                model_name=host_name,
+                vendor="Samsung Mobile" if "s10" in h_lower or "galaxy" in h_lower else "Android Mobile",
+                status="online"
+            ))
+
+    # 4. If no devices found, check Windows PnP to see if a phone is plugged in with USB Debugging OFF!
     if not devices:
         try:
             ps_cmd = (

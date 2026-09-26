@@ -102,6 +102,35 @@ export const App: React.FC = () => {
     setCurrentStep('results');
   };
 
+  const handleUniversalBack = () => {
+    if (currentStep === 'results') {
+      setCurrentStep('levels');
+    } else if (currentStep === 'scanning') {
+      if (window.confirm("Abort current active audit and return to scan levels?")) {
+        setCurrentStep('levels');
+      }
+    } else if (currentStep === 'levels') {
+      setCurrentStep('devices');
+    } else if (currentStep === 'devices') {
+      setCurrentStep('landing');
+    }
+  };
+
+  const getStepTitle = () => {
+    switch (currentStep) {
+      case 'devices':
+        return activeModule ? `${activeModule.toUpperCase()} Target Selection` : 'Target Discovery';
+      case 'levels':
+        return activeTarget ? `Audit Scope: ${activeTarget.name}` : 'Audit Scope';
+      case 'scanning':
+        return 'Active Defensive Audit';
+      case 'results':
+        return 'Audit Findings & Compliance Report';
+      default:
+        return 'Defensive Security Audit Suite';
+    }
+  };
+
   const handleResetFlow = () => {
     setActiveModule(null);
     setActiveTarget(null);
@@ -122,6 +151,9 @@ export const App: React.FC = () => {
         onOpenProfile={() => setIsProfileOpen(true)}
         auditor={auditor}
         backendOnline={backendOnline}
+        canGoBack={currentStep !== 'landing'}
+        onBack={handleUniversalBack}
+        stepTitle={getStepTitle()}
       />
 
       {/* Main Content Area */}
@@ -150,11 +182,17 @@ export const App: React.FC = () => {
             target={activeTarget}
             depth={activeDepth}
             onScanFinished={handleScanFinished}
+            onBack={() => setCurrentStep('levels')}
           />
         )}
 
         {currentStep === 'results' && scanResult && (
-          <ScanResults result={scanResult} onNewScan={handleResetFlow} />
+          <ScanResults
+            result={scanResult}
+            onNewScan={handleResetFlow}
+            onBackToTargets={() => setCurrentStep('devices')}
+            onBackToLevels={() => setCurrentStep('levels')}
+          />
         )}
       </main>
 

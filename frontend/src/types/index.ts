@@ -8,7 +8,7 @@ export interface TargetDevice {
   id: string;
   name: string;
   module: ScanModule;
-  connection_mode: 'usb' | 'wifi' | 'network' | 'manual';
+  connection_mode: 'usb' | 'wifi' | 'network' | 'manual' | 'wireless_qr';
   ip_or_serial: string;
   os_version?: string;
   model_name?: string;

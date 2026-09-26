@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { TargetDevice, ScanModule } from '../../types';
-import { getDevices, pairWifiAdb, connectWifiAdb } from '../../services/api';
+import { getDevices, pairWifiAdb, connectWifiAdb, getMobileQrCode } from '../../services/api';
 import {
   Smartphone,
   Wifi,
@@ -17,7 +17,11 @@ import {
   Send,
   KeyRound,
   Network,
-  Laptop
+  Laptop,
+  QrCode,
+  Copy,
+  ExternalLink,
+  Check
 } from 'lucide-react';
 
 interface DeviceSelectProps {
@@ -36,8 +40,13 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
   const [loading, setLoading] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
 
-  // Wireless ADB Mode Selection: 'pair' (Android 11+ pairing code) vs 'connect' (direct ip:port)
-  const [adbMode, setAdbMode] = useState<'pair' | 'connect'>('pair');
+  // Wireless Android Mode Selection: 'qr' (QR code onboarding) vs 'pair' (pairing code) vs 'connect' (direct ip:port)
+  const [adbMode, setAdbMode] = useState<'qr' | 'pair' | 'connect'>('qr');
+
+  // QR Code State
+  const [qrInfo, setQrInfo] = useState<{ qr_image: string; pairing_url: string; local_ip: string } | null>(null);
+  const [loadingQr, setLoadingQr] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // Wireless ADB Pairing State
   const [pairingIpPort, setPairingIpPort] = useState('192.168.100.31:');
@@ -54,16 +63,17 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
   const [manualIp, setManualIp] = useState('');
   const [manualName, setManualName] = useState('');
 
-  const fetchDeviceList = async () => {
-    setLoading(true);
+  const fetchDeviceList = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const data = await getDevices(module);
       setDevices(data);
       if (data.length > 0) {
-        // If nothing selected or previous selection gone, select first
         setSelectedDevice((prev) => {
           if (prev && data.find((d) => d.id === prev.id)) return prev;
-          return data[0];
+          // Prioritize newly registered QR mobile
+          const qrDev = data.find((d) => d.connection_mode === 'wireless_qr');
+          return qrDev || data[0];
         });
       } else {
         setSelectedDevice(null);
@@ -71,12 +81,28 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
     } catch (err) {
       console.error('Failed to load devices:', err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
+  // Fetch QR Code for Android Module
+  useEffect(() => {
+    if (module === 'android') {
+      setLoadingQr(true);
+      getMobileQrCode()
+        .then((res) => setQrInfo(res))
+        .catch((err) => console.error('Failed to generate QR:', err))
+        .finally(() => setLoadingQr(false));
+    }
+  }, [module]);
+
+  // Periodic background refresh to detect newly scanned QR phones immediately!
   useEffect(() => {
     fetchDeviceList();
+    const timer = setInterval(() => {
+      fetchDeviceList(true);
+    }, 2500);
+    return () => clearInterval(timer);
   }, [module]);
 
   const triggerScan = () => {
@@ -254,49 +280,157 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
             </div>
 
             {/* Mode Toggle Tabs */}
-            <div className="flex rounded-lg bg-slate-950 p-1 border border-slate-800 text-xs">
+            <div className="flex flex-wrap gap-1 rounded-lg bg-slate-950 p-1 border border-slate-800 text-xs">
+              <button
+                type="button"
+                onClick={() => setAdbMode('qr')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold transition-all cursor-pointer ${
+                  adbMode === 'qr' ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-950/50' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <QrCode className="w-3.5 h-3.5" />
+                <span>Scan QR Code (Cable-Free)</span>
+              </button>
               <button
                 type="button"
                 onClick={() => setAdbMode('pair')}
-                className={`px-3 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
-                  adbMode === 'pair' ? 'bg-cyan-500 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold transition-all cursor-pointer ${
+                  adbMode === 'pair' ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-950/50' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                Pair with 6-Digit Code
+                <KeyRound className="w-3.5 h-3.5" />
+                <span>Pair with 6-Digit Code</span>
               </button>
               <button
                 type="button"
                 onClick={() => setAdbMode('connect')}
-                className={`px-3 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
-                  adbMode === 'connect' ? 'bg-cyan-500 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold transition-all cursor-pointer ${
+                  adbMode === 'connect' ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-950/50' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                Direct Connect (Port)
+                <Send className="w-3.5 h-3.5" />
+                <span>Direct Connect (Port)</span>
               </button>
             </div>
           </div>
+
+          {/* Mode 1: Instant Wireless QR Code Onboarding */}
+          {adbMode === 'qr' && (
+            <div className="p-4 sm:p-5 rounded-xl bg-slate-950/70 border border-cyan-500/25">
+              <div className="flex flex-col sm:flex-row items-center gap-6">
+                {/* QR Code Canvas Frame */}
+                <div className="flex flex-col items-center justify-center p-3 rounded-2xl bg-slate-950 border border-cyan-500/40 shadow-xl shadow-cyan-950/60 shrink-0">
+                  {loadingQr ? (
+                    <div className="w-44 h-44 flex flex-col items-center justify-center text-xs text-slate-400 gap-2">
+                      <RefreshCw className="w-6 h-6 animate-spin text-cyan-400" />
+                      <span>Generating QR...</span>
+                    </div>
+                  ) : qrInfo?.qr_image ? (
+                    <img
+                      src={qrInfo.qr_image}
+                      alt="Mobile Pairing QR Code"
+                      className="w-44 h-44 rounded-xl border border-cyan-500/20"
+                    />
+                  ) : (
+                    <div className="w-44 h-44 flex flex-col items-center justify-center text-xs text-rose-400 p-2 text-center">
+                      Failed to render QR Code. Ensure backend is running.
+                    </div>
+                  )}
+                  <span className="text-[10px] font-mono text-cyan-400 mt-2 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Scan with Mobile Camera</span>
+                  </span>
+                </div>
+
+                {/* Instructions & Telemetry Guide */}
+                <div className="space-y-3 flex-1 text-xs">
+                  <div>
+                    <h4 className="text-sm font-bold text-white mb-1 flex items-center gap-2">
+                      <span>Zero-Cable Mobile Fingerprint & Link</span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-950 text-cyan-400 border border-cyan-800">RECOMMENDED</span>
+                    </h4>
+                    <p className="text-slate-400 leading-relaxed text-xs">
+                      Point your phone's camera, QR scanner, or browser at the QR code. The mobile node will automatically extract and register your device's complete hardware profile:
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-300">
+                    <div className="p-2 rounded-lg bg-slate-900 border border-slate-800 flex items-center gap-1.5">
+                      <Check className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Device Model & OEM</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-slate-900 border border-slate-800 flex items-center gap-1.5">
+                      <Check className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Android OS Version</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-slate-900 border border-slate-800 flex items-center gap-1.5">
+                      <Check className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Hardware & WebGL GPU</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-slate-900 border border-slate-800 flex items-center gap-1.5">
+                      <Check className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Local IPv4 Address</span>
+                    </div>
+                  </div>
+
+                  {/* Manual URL Link */}
+                  {qrInfo?.pairing_url && (
+                    <div className="pt-1 flex flex-wrap items-center gap-2">
+                      <span className="text-slate-500 text-[11px]">Direct Link:</span>
+                      <code className="px-2.5 py-1 rounded bg-slate-900 text-cyan-300 font-mono text-[11px] border border-slate-800">
+                        {qrInfo.pairing_url}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(qrInfo.pairing_url);
+                          setCopiedLink(true);
+                          setTimeout(() => setCopiedLink(false), 1500);
+                        }}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] border border-slate-700 cursor-pointer transition-colors"
+                      >
+                        {copiedLink ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-cyan-400" />}
+                        <span>{copiedLink ? 'Copied!' : 'Copy'}</span>
+                      </button>
+                      <a
+                        href={qrInfo.pairing_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] border border-slate-700 transition-colors"
+                      >
+                        <ExternalLink className="w-3 h-3 text-cyan-400" />
+                        <span>Open in Tab</span>
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Quick-fill Helper for Detected Subnet Devices */}
-          <div className="mb-4 p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80 flex items-center justify-between text-xs">
-            <span className="text-slate-400">
-              Quick IP Fill from local Wi-Fi:
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setPairingIpPort('192.168.100.31:');
-                  setWifiAdbIp('192.168.100.31:5555');
-                }}
-                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-800/50 text-[11px] font-mono cursor-pointer transition-colors"
-              >
-                Khani-s-S10 (192.168.100.31)
-              </button>
+          {adbMode !== 'qr' && (
+            <div className="mb-4 p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80 flex items-center justify-between text-xs">
+              <span className="text-slate-400">
+                Quick IP Fill from local Wi-Fi:
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPairingIpPort('192.168.100.31:');
+                    setWifiAdbIp('192.168.100.31:5555');
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-800/50 text-[11px] font-mono cursor-pointer transition-colors"
+                >
+                  Khani-s-S10 (192.168.100.31)
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Mode 1: Pair Android 11+ with 6-digit Code */}
-          {adbMode === 'pair' ? (
+          {/* Mode 2: Pair Android 11+ with 6-digit Code */}
+          {adbMode === 'pair' && (
             <div className="space-y-3">
               <div className="p-3.5 rounded-xl bg-slate-950/50 border border-slate-800/80 text-xs text-slate-300 space-y-1.5">
                 <span className="font-bold text-cyan-300 block mb-1">Android 11+ Wireless Pairing Steps:</span>
@@ -344,8 +478,10 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
                 </p>
               )}
             </div>
-          ) : (
-            /* Mode 2: Direct Connect (Port 5555 or existing paired port) */
+          )}
+
+          {/* Mode 3: Direct Connect (Port 5555 or existing paired port) */}
+          {adbMode === 'connect' && (
             <div className="space-y-3">
               <p className="text-[11px] text-slate-400">
                 Connect directly if port 5555 is open or if previously paired with this machine:
