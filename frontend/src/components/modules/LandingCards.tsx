@@ -1,5 +1,5 @@
 import React from 'react';
-import { Smartphone, Wifi, Apple, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Smartphone, Wifi, ShieldCheck, ArrowRight } from 'lucide-react';
 import type { ScanModule } from '../../types';
 
 interface LandingCardsProps {
@@ -8,7 +8,7 @@ interface LandingCardsProps {
 
 export const LandingCards: React.FC<LandingCardsProps> = ({ onSelectModule }) => {
   return (
-    <div className="w-full max-w-6xl mx-auto py-8 px-4">
+    <div className="w-full max-w-5xl mx-auto py-8 px-4">
       {/* Title / Hero */}
       <div className="text-center mb-12">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/60 border border-cyan-800/40 text-cyan-400 text-xs font-semibold uppercase tracking-wider mb-4">
@@ -24,8 +24,8 @@ export const LandingCards: React.FC<LandingCardsProps> = ({ onSelectModule }) =>
         </p>
       </div>
 
-      {/* Three Big Module Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Two Active Module Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
         {/* Android Card */}
         <div
           onClick={() => onSelectModule('android')}
@@ -125,57 +125,6 @@ export const LandingCards: React.FC<LandingCardsProps> = ({ onSelectModule }) =>
           <div className="pt-4 border-t border-slate-800/80 flex items-center justify-between text-xs font-semibold text-cyan-400 group-hover:translate-x-1 transition-transform">
             <span>Configure Wireless Audit</span>
             <ArrowRight className="w-4 h-4" />
-          </div>
-        </div>
-
-        {/* iOS Card - Coming Soon */}
-        <div
-          className="group relative rounded-2xl bg-slate-900/40 border border-slate-800/80 p-6 sm:p-7 transition-all duration-300 opacity-70 cursor-not-allowed flex flex-col justify-between"
-        >
-          <div className="absolute top-3 right-3 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-extrabold uppercase tracking-wider">
-            Coming Soon
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center justify-center w-13 h-13 rounded-2xl bg-slate-800/60 border border-slate-700/60 text-slate-400">
-                <Apple className="w-7 h-7" />
-              </div>
-              <span className="px-2.5 py-1 rounded-md bg-slate-800/60 text-[11px] font-semibold text-slate-400 border border-slate-700/50">
-                In Development
-              </span>
-            </div>
-
-            <h3 className="text-xl font-bold text-slate-300 mb-2">
-              iOS & iPadOS
-            </h3>
-            <p className="text-xs text-slate-400 mb-6 leading-relaxed">
-              MobileDevice USB driver subsystem and iOS container sandbox interrogation are currently in prototype development and will launch in an upcoming release.
-            </p>
-
-            <div className="space-y-2 mb-6">
-              <div className="flex items-center gap-2 text-xs text-slate-400">
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-600" />
-                <span>iOS Release Cadence & Patch Level</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-slate-400">
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-600" />
-                <span>Jailbreak & Sandbox Integrity Check</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-slate-400">
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-600" />
-                <span>Configuration Profiles & CA Roots</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-slate-400">
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-600" />
-                <span>WebKit & Kernel Advisory Matching</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-4 border-t border-slate-800/60 flex items-center justify-between text-xs font-semibold text-slate-400">
-            <span>Prototype in Progress</span>
-            <span className="text-[11px] text-amber-400/90 font-mono">Q4 Roadmap</span>
           </div>
         </div>
       </div>

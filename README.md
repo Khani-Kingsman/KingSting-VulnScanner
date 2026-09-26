@@ -21,11 +21,12 @@
 
 ![KING STING VULNScanner Desktop Dashboard](docs/screenshots/dashboard.png)
 
-**KING STING VULNScanner** is a cross-platform desktop security audit suite engineered for security professionals, IT administrators, and individuals managing BYOD environments. The application provides structured, defensible, and non-destructive posture evaluations across three primary vectors:
+**KING STING VULNScanner** is a cross-platform desktop security audit suite engineered for security professionals, IT administrators, and individuals managing BYOD environments. The application provides structured, defensible, and non-destructive posture evaluations across two active primary vectors:
 
-1. **Wireless Local Subnets & Network Infrastructure**
-2. **Android Mobile Endpoints (Physical USB & Wireless ADB)**
-3. **iOS & iPadOS Hardware & Profiles** *(Coming Soon — In Active Development / Q4 Roadmap)*
+1. **Android Mobile Endpoints (Physical USB & Wireless ADB)**
+2. **Wireless Local Subnets & Network Infrastructure**
+
+*(An expanded **iOS & iPadOS Hardware & Profiles** audit subsystem is currently in active development and scheduled for an upcoming release — see [Section 3](#3-ios-ipados--macos-module-coming-soon--under-development)).*
 
 Audits produce structured telemetry, identify misconfigurations or unpatched components, correlate findings against official CVE bulletins, and generate signed compliance records.
 
@@ -62,7 +63,7 @@ All assessment routines adhere strictly to non-destructive auditing standards:
 ### 3. iOS, iPadOS & macOS Module `[Coming Soon / Under Development]`
 
 > [!NOTE]
-> The iOS and iPadOS interrogation subsystem is currently in active prototype development and slated for release in an upcoming update. The module is temporarily disabled in the desktop UI while native MobileDevice USB abstractions and protocol drivers are finalized.
+> The iOS and iPadOS interrogation subsystem is currently in active prototype development and slated for an upcoming release. The module has been removed from the active desktop UI while native MobileDevice USB abstractions and protocol drivers are finalized.
 
 * **Apple Network Attack Surface**: Interrogates active Apple network services including mDNS/Bonjour (5353), AirPlay (7000), APNs (5223), and MobileDevice Lockdownd (62078).
 * **Build & Firmware Cadence**: Validates iOS/iPadOS release version against Apple Security Bulletins and active zero-day advisories (e.g. WebKit CVE-2024-23222, CVE-2023-42916).
