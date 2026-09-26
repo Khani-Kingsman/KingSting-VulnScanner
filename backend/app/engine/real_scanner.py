@@ -88,7 +88,7 @@ class RealWirelessScanner(BaseScanner):
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         # Extract target IP / Gateway
-        gateway_ip = "192.168.100.1"
+        gateway_ip = "192.168.1.1"
         if "Gateway: " in target.ip_or_serial:
             m = re.search(r"Gateway:\s*([0-9\.]+)", target.ip_or_serial)
             if m:

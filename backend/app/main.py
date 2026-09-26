@@ -104,7 +104,7 @@ async def get_mobile_pairing_qr_endpoint():
 async def mobile_audit_portal(request: Request):
     """Serves high-aesthetic mobile web app that fingerprints mobile device and registers it into scanner."""
     template_path = Path(__file__).resolve().parent / "templates" / "mobile_audit.html"
-    client_ip = request.client.host if request.client else "192.168.100.31"
+    client_ip = request.client.host if request.client else "127.0.0.1"
     if client_ip in ["127.0.0.1", "::1", "localhost"]:
         client_ip = get_local_ip()
 

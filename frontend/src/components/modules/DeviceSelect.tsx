@@ -70,13 +70,13 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
   const [copiedLink, setCopiedLink] = useState(false);
 
   // Wireless ADB Pairing State
-  const [pairingIpPort, setPairingIpPort] = useState('192.168.100.54:');
+  const [pairingIpPort, setPairingIpPort] = useState('');
   const [pairingCode, setPairingCode] = useState('');
   const [isPairing, setIsPairing] = useState(false);
   const [pairingMessage, setPairingMessage] = useState<string | null>(null);
 
   // Wireless ADB Direct Connect State
-  const [wifiAdbIp, setWifiAdbIp] = useState('192.168.100.54:5555');
+  const [wifiAdbIp, setWifiAdbIp] = useState('');
   const [connectingAdb, setConnectingAdb] = useState(false);
   const [adbConnectMessage, setAdbConnectMessage] = useState<string | null>(null);
 
@@ -752,7 +752,7 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
                   type="text"
                   value={pairingIpPort}
                   onChange={(e) => setPairingIpPort(e.target.value)}
-                  placeholder="e.g. 192.168.100.54:42345"
+                  placeholder="e.g. 192.168.1.50:42345"
                   className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono"
                 />
               </div>
@@ -791,7 +791,7 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
                 type="text"
                 value={wifiAdbIp}
                 onChange={(e) => setWifiAdbIp(e.target.value)}
-                placeholder="e.g. 192.168.100.54:5555"
+                placeholder="e.g. 192.168.1.50:5555"
                 className="flex-1 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono"
               />
               <button
@@ -833,7 +833,7 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
             type="text"
             value={manualIp}
             onChange={(e) => setManualIp(e.target.value)}
-            placeholder="IP Address (e.g. 192.168.100.54)"
+            placeholder="IP Address (e.g. 192.168.1.50)"
             className="flex-1 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono"
           />
           <button
@@ -953,7 +953,7 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
                     <input
                       type="text"
                       readOnly
-                      value={qrInfo?.pairing_url || `http://${qrInfo?.local_ip || '192.168.100.206'}:8765/mobile-audit`}
+                      value={qrInfo?.pairing_url || `http://${qrInfo?.local_ip || '192.168.1.100'}:8765/mobile-audit`}
                       className="flex-1 px-2.5 py-1 rounded bg-slate-900 border border-slate-700 text-[11px] font-mono text-cyan-300 select-all"
                     />
                     <button

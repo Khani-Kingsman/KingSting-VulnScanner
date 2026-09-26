@@ -19,11 +19,13 @@
 
 ## Overview
 
+![KING STING VULNScanner Desktop Dashboard](docs/screenshots/dashboard.png)
+
 **KING STING VULNScanner** is a cross-platform desktop security audit suite engineered for security professionals, IT administrators, and individuals managing BYOD environments. The application provides structured, defensible, and non-destructive posture evaluations across three primary vectors:
 
 1. **Wireless Local Subnets & Network Infrastructure**
 2. **Android Mobile Endpoints (Physical USB & Wireless ADB)**
-3. **iOS & iPadOS Hardware & Profiles** *(Coming Soon — Prototype in Progress)*
+3. **iOS & iPadOS Hardware & Profiles** *(Coming Soon — In Active Development / Q4 Roadmap)*
 
 Audits produce structured telemetry, identify misconfigurations or unpatched components, correlate findings against official CVE bulletins, and generate signed compliance records.
 
@@ -106,6 +108,9 @@ KingSting-VulnScanner/
 │   │   └── index.css                # Tailwind CSS v4 stylesheets
 │   ├── package.json
 │   └── vite.config.ts
+├── docs/
+│   └── screenshots/
+│       └── dashboard.png            # Desktop application interface preview
 ├── run_desktop.bat                  # Desktop application launcher
 └── README.md
 ```

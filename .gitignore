@@ -43,6 +43,12 @@ backend/data/reports/*.pdf
 backend/data/*.db
 backend/data/*.db-journal
 
+# Temporary test scratch scripts
+backend/test_api_endpoints.py
+backend/test_deep_scan.py
+backend/test_full_audit.py
+*.log
+
 # OS / Editor
 .DS_Store
 Thumbs.db

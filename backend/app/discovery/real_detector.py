@@ -94,11 +94,11 @@ def get_local_ip() -> str:
     """Discovers outbound LAN IPv4 address for local network pairing."""
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
-        s.connect(('192.168.100.1', 80))
+        s.connect(('8.8.8.8', 80))
         return s.getsockname()[0]
     except Exception:
         try:
-            s.connect(('8.8.8.8', 80))
+            s.connect(('1.1.1.1', 80))
             return s.getsockname()[0]
         except Exception:
             return "127.0.0.1"
@@ -420,12 +420,7 @@ def connect_adb_wifi(ip_port: str) -> Dict[str, Any]:
     except Exception as e:
         return {"success": False, "message": str(e)}
 
-_HOST_CACHE: Dict[str, str] = {
-    "192.168.100.54": "Khani-s-S10",
-    "192.168.100.95": "HAPPY-KILLER-s-A07",
-    "192.168.100.1": "Gateway Router",
-    "192.168.100.206": "Auditor Console (Local PC)"
-}
+_HOST_CACHE: Dict[str, str] = {}
 
 def _background_resolve(ip: str):
     try:
@@ -591,8 +586,8 @@ def detect_wireless_networks() -> List[TargetDevice]:
         print(f"Error running netsh: {e}")
 
     # 2. Get Real Gateway and Local IP via native route print (sub-50ms)
-    gateway = "192.168.100.1"
-    local_ip = "192.168.100.114"
+    gateway = "192.168.1.1"
+    local_ip = "127.0.0.1"
     try:
         p_route = subprocess.run(['route', 'print', '0.0.0.0'], capture_output=True, text=True, timeout=2)
         for line in p_route.stdout.splitlines():

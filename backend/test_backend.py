@@ -31,7 +31,7 @@ async def test_backend_flow():
         name="Offline Ghost Device",
         module="android",
         connection_mode="network",
-        ip_or_serial="192.168.100.99",
+        ip_or_serial="192.0.2.99",
         status="offline"
     )
     offline_req = ScanRequest(
@@ -55,7 +55,7 @@ async def test_backend_flow():
         name="Local Gateway Interface",
         module="wireless",
         connection_mode="network",
-        ip_or_serial="192.168.100.1",
+        ip_or_serial="127.0.0.1",
         os_version="Gateway Access Point",
         status="online"
     )
@@ -82,10 +82,10 @@ async def test_backend_flow():
 
     print("4. Testing Device Deletion...")
     from app.discovery.real_detector import delete_device, REGISTERED_MOBILES
-    REGISTERED_MOBILES["192.168.100.245"] = {"client_ip": "192.168.100.245", "model": "Test Phone"}
-    assert "192.168.100.245" in REGISTERED_MOBILES
-    delete_device("192.168.100.245")
-    assert "192.168.100.245" not in REGISTERED_MOBILES
+    REGISTERED_MOBILES["192.0.2.245"] = {"client_ip": "192.0.2.245", "model": "Test Phone"}
+    assert "192.0.2.245" in REGISTERED_MOBILES
+    delete_device("192.0.2.245")
+    assert "192.0.2.245" not in REGISTERED_MOBILES
     print("Device deletion verified successfully!")
 
     print("5. Testing PDF Generation...")

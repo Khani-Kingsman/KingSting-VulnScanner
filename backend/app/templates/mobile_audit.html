@@ -515,7 +515,7 @@
       const customTestPort = document.getElementById('testPortInput').value.trim();
 
       const payload = {
-        client_ip: document.getElementById('valIP').textContent.trim() || '192.168.100.54',
+        client_ip: document.getElementById('valIP').textContent.trim() || window.location.hostname || '127.0.0.1',
         model: fp.model,
         vendor: fp.vendor,
         os_version: fp.osVersion,
