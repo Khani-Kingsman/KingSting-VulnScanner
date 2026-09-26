@@ -61,6 +61,7 @@ class MobileRegistrationRequest(BaseModel):
     user_agent: Optional[str] = None
     platform: Optional[str] = None
     network: Optional[str] = None
+    custom_target: Optional[str] = None
 
 @app.get("/api/health")
 async def health_check():

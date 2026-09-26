@@ -62,6 +62,22 @@ def generate_mobile_pairing_qr(port: int = 8765) -> Dict[str, Any]:
         "local_ip": local_ip
     }
 
+def read_arp_hosts() -> List[tuple]:
+    """Reads dynamic IPv4 host entries from Windows ARP cache."""
+    try:
+        p_arp = subprocess.run(["arp", "-a"], capture_output=True, text=True, timeout=2)
+        lines = p_arp.stdout.splitlines()
+        hosts = []
+        for line in lines:
+            parts = line.strip().split()
+            if len(parts) >= 3 and parts[2].lower() == "dynamic":
+                ip, mac = parts[0], parts[1]
+                if not ip.startswith("224.") and not ip.startswith("239.") and not ip.endswith(".255"):
+                    hosts.append((ip, mac))
+        return hosts
+    except Exception:
+        return []
+
 def detect_android_devices() -> List[TargetDevice]:
     """Queries registered wireless QR mobiles, ADB daemon, and Windows PnP to detect connected Android devices."""
     devices: List[TargetDevice] = []
@@ -149,8 +165,11 @@ def detect_android_devices() -> List[TargetDevice]:
         print(f"Error querying adb: {e}")
 
     # 3. Add discovered mobile phones on Wi-Fi subnet (if not already added via QR)
+    active_ips = {ip for ip, _ in read_arp_hosts()}
     for ip, host_name in _HOST_CACHE.items():
         if ip in seen_ips:
+            continue
+        if active_ips and ip not in active_ips:
             continue
         h_lower = host_name.lower()
         if any(k in h_lower for k in ["s10", "galaxy", "samsung", "a0", "a1", "a2", "a5", "sm-", "pixel", "redmi", "xiaomi", "killer"]):
@@ -225,6 +244,7 @@ def connect_adb_wifi(ip_port: str) -> Dict[str, Any]:
         return {"success": False, "message": str(e)}
 
 _HOST_CACHE: Dict[str, str] = {
+    "192.168.100.54": "Khani-s-S10",
     "192.168.100.31": "Khani-s-S10",
     "192.168.100.95": "HAPPY-KILLER-s-A07"
 }
@@ -240,10 +260,13 @@ def _background_resolve(ip: str):
 def _resolve_host(ip: str) -> str:
     if ip in _HOST_CACHE:
         return _HOST_CACHE[ip]
-    # Trigger background resolution for future queries
-    import threading
-    t = threading.Thread(target=_background_resolve, args=(ip,), daemon=True)
-    t.start()
+    try:
+        name = socket.gethostbyaddr(ip)[0]
+        if name:
+            _HOST_CACHE[ip] = name
+            return name
+    except Exception:
+        pass
     return ""
 
 def sweep_subnet_devices(gateway: str, local_ip: str) -> List[TargetDevice]:

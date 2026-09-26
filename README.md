@@ -49,15 +49,18 @@ All assessment routines adhere strictly to non-destructive auditing standards:
 * **DNS Resolution Integrity**: Validates consistency between local gateway resolvers and known public secure resolvers (Cloudflare, Google Public DNS) to detect potential redirection or DNS hijacking.
 
 ### 2. Android Module
-* **Cable-Free Wireless Interrogation**: Direct integration with Android 11+ Wireless Debugging using 6-digit pairing codes (`adb pair`) and direct network ports (`adb connect`), enabling full mobile audits without a physical USB cable.
-* **OS & Patch Level Baseline**: Verifies Android OS version currency, Security Patch Level lag, and kernel consistency.
-* **Root & Privilege Integrity**: Checks for binary artifacts (`su`, SuperSU, Magisk traces) and unlocked bootloader status.
-* **Service Exposure**: Audits exposed debug interfaces (unauthorized network ADB daemons on TCP port 5555) and insecure USB configurations.
-* **Permission Overreach**: Evaluates application privilege footprints, identifying sideloaded packages requesting high-risk capabilities (Accessibility Services, Device Admin, SMS/Call Logs).
+* **Instant QR Wireless Onboarding**: Zero-cable pairing via high-contrast cyber QR code (`/mobile-audit`), extracting real hardware concurrency, WebGL GPU profile, screen density, and initiating automated permission consent.
+* **Cable-Free Wireless Interrogation**: Direct integration with Android 11+ Wireless Debugging using 6-digit pairing codes (`adb pair`) and direct network ports (`adb connect`), enabling deep mobile audits without a physical USB cable.
+* **OS & Patch Level Baseline**: Verifies Android OS version currency, Security Patch Level lag, and OEM lifecycle status (e.g. Samsung Galaxy S10 end-of-support advisories).
+* **Root & Privilege Integrity**: Checks for binary artifacts (`su`, SuperSU, Magisk traces), test-keys builds, and listening root remote command shells.
+* **Service & Test Port Sweep**: Real active socket probe testing for unauthenticated ADB daemons on TCP port 5555, cleartext HTTP servers, mobile FTP servers (2121), SSH daemons (8022), and custom test services.
+* **Permission Overreach & User App Audit**: Evaluates application privilege footprints, identifying sideloaded packages requesting high-risk capabilities (Accessibility Services, Device Admin, SMS/Call Logs).
 
-### 3. iOS & iPadOS Module
-* **Build & Firmware Cadence**: Validates iOS/iPadOS release version against vendor security bulletins and active zero-day advisories.
-* **Sandbox Integrity**: Verifies containerization and integrity of filesystem isolation boundaries.
+### 3. iOS, iPadOS & macOS Module
+* **Apple Network Attack Surface**: Interrogates active Apple network services including mDNS/Bonjour (5353), AirPlay (7000), APNs (5223), and MobileDevice Lockdownd (62078).
+* **Build & Firmware Cadence**: Validates iOS/iPadOS release version against Apple Security Bulletins and active zero-day advisories (e.g. WebKit CVE-2024-23222, CVE-2023-42916).
+* **Sandbox Integrity**: Verifies containerization and integrity of filesystem isolation boundaries (read-only Signed System Volume).
+* **Hardware Data Protection**: Audits Apple Secure Enclave Processor (SEP) binding and NSFileProtectionComplete cryptographic storage classes.
 * **Configuration Profiles & MDM**: Identifies untrusted mobile device management (MDM) payloads, enterprise distribution certificates, and sideloaded provisioning profiles.
 * **Root CA Trust Store Audit**: Flags user-installed root Certificate Authorities capable of enabling SSL/TLS proxy interception.
 

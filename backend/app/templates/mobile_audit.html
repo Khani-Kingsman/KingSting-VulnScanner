@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>KING STING • Mobile Audit Node</title>
+  <title>KING STING • Defensive Mobile Node</title>
   <style>
     :root {
       --bg: #030712;
@@ -13,6 +13,7 @@
       --cyan-glow: rgba(0, 229, 255, 0.25);
       --emerald: #10b981;
       --emerald-glow: rgba(16, 185, 129, 0.25);
+      --amber: #f59e0b;
       --text: #f8fafc;
       --text-muted: #94a3b8;
     }
@@ -34,7 +35,7 @@
     }
     .header {
       text-align: center;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
       max-width: 440px;
       width: 100%;
     }
@@ -76,23 +77,57 @@
       color: var(--text-muted);
       margin-top: 4px;
     }
+
+    /* Auto Permission Banner */
+    .perm-badge {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+      border-radius: 12px;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      color: #34d399;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      max-width: 440px;
+      width: 100%;
+      text-transform: uppercase;
+      box-shadow: 0 0 20px var(--emerald-glow);
+    }
+    .perm-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--emerald);
+      box-shadow: 0 0 8px var(--emerald);
+      animation: blink 1.5s infinite;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
     .card {
       background: var(--card);
       border: 1px solid var(--card-border);
       border-radius: 20px;
-      padding: 22px;
+      padding: 20px;
       max-width: 440px;
       width: 100%;
       box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
-      margin-bottom: 18px;
+      margin-bottom: 16px;
     }
     .card-title {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 1px;
       color: var(--cyan);
-      margin-bottom: 14px;
+      margin-bottom: 12px;
       display: flex;
       align-items: center;
       gap: 8px;
@@ -100,8 +135,8 @@
     .card-title::before {
       content: "";
       display: inline-block;
-      width: 8px;
-      height: 8px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
       background: var(--cyan);
       box-shadow: 0 0 8px var(--cyan);
@@ -109,7 +144,7 @@
     .spec-grid {
       display: grid;
       grid-template-columns: 1fr;
-      gap: 12px;
+      gap: 10px;
     }
     .spec-item {
       display: flex;
@@ -117,16 +152,16 @@
       align-items: center;
       background: rgba(3, 7, 18, 0.6);
       border: 1px solid rgba(255, 255, 255, 0.05);
-      border-radius: 12px;
-      padding: 10px 14px;
+      border-radius: 10px;
+      padding: 8px 12px;
     }
     .spec-label {
-      font-size: 12px;
+      font-size: 11.5px;
       color: var(--text-muted);
       font-weight: 500;
     }
     .spec-value {
-      font-size: 13px;
+      font-size: 12.5px;
       color: #fff;
       font-weight: 700;
       text-align: right;
@@ -135,35 +170,69 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    .consent-box {
-      margin-top: 18px;
-      padding: 14px;
-      background: rgba(16, 185, 129, 0.08);
-      border: 1px solid rgba(16, 185, 129, 0.25);
-      border-radius: 14px;
+
+    /* Permission Toggles */
+    .toggle-list {
+      margin-top: 14px;
       display: flex;
-      align-items: flex-start;
-      gap: 10px;
+      flex-direction: column;
+      gap: 8px;
     }
-    .consent-box input[type="checkbox"] {
-      margin-top: 3px;
-      accent-color: var(--emerald);
-      width: 18px;
-      height: 18px;
-      cursor: pointer;
-    }
-    .consent-box label {
+    .toggle-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: rgba(16, 185, 129, 0.06);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      border-radius: 10px;
       font-size: 11.5px;
       color: #e2e8f0;
-      line-height: 1.4;
-      cursor: pointer;
     }
+    .toggle-tag {
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--emerald);
+      background: rgba(16, 185, 129, 0.15);
+      padding: 2px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+
+    .test-port-box {
+      margin-top: 14px;
+      padding: 10px 12px;
+      background: rgba(3, 7, 18, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+    }
+    .test-port-label {
+      font-size: 11px;
+      color: var(--cyan);
+      font-weight: 600;
+      margin-bottom: 6px;
+      display: block;
+    }
+    .test-port-input {
+      width: 100%;
+      background: #0b1329;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      color: #fff;
+      padding: 8px 10px;
+      font-size: 13px;
+      outline: none;
+    }
+    .test-port-input:focus {
+      border-color: var(--cyan);
+    }
+
     .btn {
       display: block;
       width: 100%;
-      padding: 16px;
+      padding: 15px;
       border-radius: 14px;
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 800;
       text-align: center;
       border: none;
@@ -171,7 +240,7 @@
       color: #030712;
       box-shadow: 0 0 20px var(--cyan-glow);
       cursor: pointer;
-      margin-top: 18px;
+      margin-top: 16px;
       transition: all 0.2s ease;
       letter-spacing: 0.5px;
     }
@@ -180,17 +249,18 @@
       filter: brightness(1.1);
     }
     .btn:disabled {
-      opacity: 0.5;
+      opacity: 0.6;
       cursor: not-allowed;
     }
+
     .success-panel {
       display: none;
       text-align: center;
       padding: 24px 16px;
     }
     .success-icon {
-      width: 60px;
-      height: 60px;
+      width: 56px;
+      height: 56px;
       border-radius: 50%;
       background: rgba(16, 185, 129, 0.15);
       border: 2px solid var(--emerald);
@@ -198,8 +268,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 28px;
-      margin: 0 auto 16px;
+      font-size: 26px;
+      margin: 0 auto 14px;
       color: var(--emerald);
     }
     .success-title {
@@ -209,7 +279,7 @@
       margin-bottom: 8px;
     }
     .success-desc {
-      font-size: 13px;
+      font-size: 12.5px;
       color: var(--text-muted);
       line-height: 1.5;
       margin-bottom: 16px;
@@ -228,7 +298,7 @@
       letter-spacing: 0.5px;
     }
     .footer {
-      font-size: 11px;
+      font-size: 10.5px;
       color: #64748b;
       text-align: center;
       margin-top: 16px;
@@ -241,16 +311,21 @@
   <div class="header">
     <div class="logo-badge">
       <div class="pulse-ring"></div>
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
       </svg>
     </div>
     <h1 class="title">KING STING <span>NODE</span></h1>
-    <p class="subtitle">Wireless Mobile Defensive Security Auditor</p>
+    <p class="subtitle">Wireless Defensive Security Auditor</p>
+  </div>
+
+  <div class="perm-badge">
+    <div class="perm-dot"></div>
+    <span>Status: Audit Permissions Enabled</span>
   </div>
 
   <div class="card" id="mainCard">
-    <div class="card-title">Live Device Telemetry & Fingerprint</div>
+    <div class="card-title">Live Hardware Telemetry & Fingerprint</div>
     
     <div class="spec-grid">
       <div class="spec-item">
@@ -283,15 +358,34 @@
       </div>
     </div>
 
-    <div class="consent-box">
-      <input type="checkbox" id="consentCheck" checked>
-      <label for="consentCheck">
-        I verify authorization to conduct non-intrusive security auditing on this hardware node.
-      </label>
+    <!-- Active Audit Permissions -->
+    <div class="toggle-list">
+      <div class="toggle-item">
+        <span>Storage Encryption & FBE Audit</span>
+        <span class="toggle-tag">Active</span>
+      </div>
+      <div class="toggle-item">
+        <span>Network Attack Surface & Port Sweep</span>
+        <span class="toggle-tag">Active</span>
+      </div>
+      <div class="toggle-item">
+        <span>OS Lifecycle & CVE Correlation</span>
+        <span class="toggle-tag">Active</span>
+      </div>
+      <div class="toggle-item">
+        <span>Root & Privilege Escalation Telemetry</span>
+        <span class="toggle-tag">Active</span>
+      </div>
+    </div>
+
+    <!-- Optional Test Service / Port Input -->
+    <div class="test-port-box">
+      <label class="test-port-label">Target App / Test Service Port (Optional)</label>
+      <input type="text" id="testPortInput" class="test-port-input" placeholder="e.g. 8080, 8000, 2121, 5555 or package name">
     </div>
 
     <button class="btn" id="regBtn" onclick="registerDevice()">
-      AUTHORIZE & CONNECT DEVICE
+      ✓ AUTHORIZE & ACTIVATE AUDIT NODE
     </button>
   </div>
 
@@ -300,11 +394,11 @@
     <h2 class="success-title">DEVICE CONNECTED & VERIFIED</h2>
     <p class="success-desc">
       Your mobile device has been paired with the <strong>KING STING VULNScanner</strong> desktop engine.
-      You can now select this device on your PC dashboard and launch an authorized defensive security audit.
+      Audit permissions are fully authorized. Return to your desktop app to execute the scan.
     </p>
     <div class="node-badge">
       <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--emerald);"></span>
-      ONLINE • TELEMETRY SYNCHRONIZED
+      ONLINE • PERMISSIONS GRANTED
     </div>
   </div>
 
@@ -313,7 +407,6 @@
   </div>
 
   <script>
-    // Extract hardware & device fingerprint
     function extractFingerprint() {
       const ua = navigator.userAgent || '';
       let vendor = 'Android';
@@ -346,10 +439,10 @@
           }
         }
 
-        if (/Samsung|SM-/i.test(ua) || /SM-/i.test(model)) {
+        if (/Samsung|SM-|G973/i.test(ua) || /SM-|G973/i.test(model)) {
           vendor = 'Samsung';
           if (!model.toLowerCase().includes('samsung') && !model.toLowerCase().includes('galaxy')) {
-            model = `Samsung ${model}`;
+            model = `Samsung Galaxy S10 (${model})`;
           }
         } else if (/Pixel/i.test(ua) || /Pixel/i.test(model)) {
           vendor = 'Google';
@@ -388,7 +481,7 @@
       let netStr = 'Local Wi-Fi Subnet';
       if (navigator.connection) {
         const c = navigator.connection;
-        netStr = `${(c.effectiveType || 'Wi-Fi').toUpperCase()} (RTT: ${c.rtt || 20}ms)`;
+        netStr = `${(c.effectiveType || 'Wi-Fi').toUpperCase()} (RTT: ${c.rtt || 10}ms)`;
       }
 
       return {
@@ -416,17 +509,13 @@
 
     async function registerDevice() {
       const btn = document.getElementById('regBtn');
-      const consent = document.getElementById('consentCheck').checked;
-      if (!consent) {
-        alert('Please accept authorization consent to continue.');
-        return;
-      }
-
       btn.disabled = true;
       btn.textContent = 'CONNECTING TO SCANNER...';
 
+      const customTestPort = document.getElementById('testPortInput').value.trim();
+
       const payload = {
-        client_ip: document.getElementById('valIP').textContent.trim() || '192.168.100.31',
+        client_ip: document.getElementById('valIP').textContent.trim() || '192.168.100.54',
         model: fp.model,
         vendor: fp.vendor,
         os_version: fp.osVersion,
@@ -434,7 +523,8 @@
         hardware: `${fp.hardware} • ${fp.gpu}`,
         user_agent: fp.ua,
         platform: fp.platform,
-        network: fp.netStr
+        network: fp.netStr,
+        custom_target: customTestPort
       };
 
       try {
@@ -449,14 +539,12 @@
           document.getElementById('successCard').style.display = 'block';
         } else {
           btn.disabled = false;
-          btn.textContent = 'RETRY CONNECTION';
-          alert('Failed to register device on scanner.');
+          btn.textContent = 'RETRY ACTIVATION';
         }
       } catch (err) {
         console.error(err);
         btn.disabled = false;
-        btn.textContent = 'RETRY CONNECTION';
-        alert('Network connection error: ' + err.message);
+        btn.textContent = 'RETRY ACTIVATION';
       }
     }
 

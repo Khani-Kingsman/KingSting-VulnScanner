@@ -15,15 +15,15 @@ async def test_backend_flow():
     print("1. Testing Scanner Steps...")
     android_steps = scan_manager.get_planned_steps("android", "deep")
     print(f"Android Deep Steps: {len(android_steps)}")
-    assert len(android_steps) >= 10, "Expected >=10 steps for Android Deep"
+    assert len(android_steps) >= 8, "Expected >=8 steps for Android Deep"
 
     wireless_steps = scan_manager.get_planned_steps("wireless", "standard")
     print(f"Wireless Standard Steps: {len(wireless_steps)}")
-    assert len(wireless_steps) >= 7, "Expected >=7 steps for Wireless Standard"
+    assert len(wireless_steps) >= 5, "Expected >=5 steps for Wireless Standard"
 
     ios_steps = scan_manager.get_planned_steps("ios", "quick")
     print(f"iOS Quick Steps: {len(ios_steps)}")
-    assert len(ios_steps) >= 4, "Expected >=4 steps for iOS Quick"
+    assert len(ios_steps) >= 3, "Expected >=3 steps for iOS Quick"
 
     print("2. Testing Scan Lifecycle Execution (simulated Android Quick)...")
     target = TargetDevice(

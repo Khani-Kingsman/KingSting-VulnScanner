@@ -49,13 +49,13 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
   const [copiedLink, setCopiedLink] = useState(false);
 
   // Wireless ADB Pairing State
-  const [pairingIpPort, setPairingIpPort] = useState('192.168.100.31:');
+  const [pairingIpPort, setPairingIpPort] = useState('192.168.100.54:');
   const [pairingCode, setPairingCode] = useState('');
   const [isPairing, setIsPairing] = useState(false);
   const [pairingMessage, setPairingMessage] = useState<string | null>(null);
 
   // Wireless ADB Direct Connect State
-  const [wifiAdbIp, setWifiAdbIp] = useState('192.168.100.31:5555');
+  const [wifiAdbIp, setWifiAdbIp] = useState('192.168.100.54:5555');
   const [connectingAdb, setConnectingAdb] = useState(false);
   const [adbConnectMessage, setAdbConnectMessage] = useState<string | null>(null);
 

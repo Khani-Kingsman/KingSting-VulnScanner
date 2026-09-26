@@ -8,14 +8,14 @@ from app.models.scan import ScanRequest, ScanResult, CheckStep, TargetDevice, Sc
 from app.models.findings import Finding
 from app.models.audit import AuditEntry
 from app.engine.real_scanner import RealAndroidScanner, RealWirelessScanner
-from app.engine.mock_ios import MockIOSScanner
+from app.engine.real_ios_scanner import RealIOSScanner
 from app.db.audit_log import record_scan
 
 class ScanSessionManager:
     def __init__(self):
         self.android_scanner = RealAndroidScanner()
         self.wireless_scanner = RealWirelessScanner()
-        self.ios_scanner = MockIOSScanner()
+        self.ios_scanner = RealIOSScanner()
         self.active_scans: Dict[str, Dict[str, Any]] = {}
         self.completed_scans: Dict[str, ScanResult] = {}
 
