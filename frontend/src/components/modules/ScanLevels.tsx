@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { TargetDevice, ScanDepth, CheckStep, ScanModule } from '../../types';
 import { getScanSteps } from '../../services/api';
-import { Zap, Layers, ShieldAlert, ChevronLeft, Check, ListChecks, Play, AlertCircle } from 'lucide-react';
+import { Zap, ShieldAlert, ChevronLeft, Check, ListChecks, Play, AlertCircle } from 'lucide-react';
 
 interface ScanLevelsProps {
   module: ScanModule;
@@ -16,7 +16,7 @@ export const ScanLevels: React.FC<ScanLevelsProps> = ({
   onBack,
   onStartConsent
 }) => {
-  const [selectedDepth, setSelectedDepth] = useState<ScanDepth>('standard');
+  const [selectedDepth, setSelectedDepth] = useState<ScanDepth>('deep');
   const [plannedSteps, setPlannedSteps] = useState<CheckStep[]>([]);
   const [loadingSteps, setLoadingSteps] = useState(false);
 
@@ -41,7 +41,7 @@ export const ScanLevels: React.FC<ScanLevelsProps> = ({
       <div className="flex items-center justify-between mb-6">
         <button
           onClick={onBack}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300 hover:text-white hover:border-slate-700 transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300 hover:text-white hover:border-slate-700 transition-colors cursor-pointer"
         >
           <ChevronLeft className="w-4 h-4" />
           <span>Back to Target Selection</span>
@@ -59,125 +59,98 @@ export const ScanLevels: React.FC<ScanLevelsProps> = ({
       <div className="text-center mb-8">
         <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">Select Audit Depth</h2>
         <p className="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto">
-          Tailor the scope of defensive inspection from rapid hygiene verification to exhaustive deep-dive audits.
+          Choose between a rapid surface hygiene check and an exhaustive deep-spectrum vulnerability audit.
         </p>
       </div>
 
-      {/* Depth Tier Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+      {/* Depth Tier Cards - 2 Options: Quick vs Exhaustive Deep */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         {/* Quick Check */}
         <div
           onClick={() => setSelectedDepth('quick')}
-          className={`p-5 rounded-2xl border transition-all cursor-pointer relative ${
+          className={`p-6 rounded-2xl border transition-all cursor-pointer relative ${
             selectedDepth === 'quick'
               ? 'bg-slate-850 border-cyan-500 shadow-xl shadow-cyan-950/40 ring-1 ring-cyan-500/50'
               : 'bg-slate-900/60 hover:bg-slate-900 border-slate-800'
           }`}
         >
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
               <Zap className="w-5 h-5" />
             </div>
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-800 text-slate-300">
+            <span className="px-2.5 py-1 rounded text-[10px] font-bold uppercase bg-slate-800 text-slate-300 border border-slate-700">
               ~6 Seconds
             </span>
           </div>
 
-          <h3 className="text-base font-bold text-white mb-1">Quick Check</h3>
-          <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-            Surface-level inspection of OS version, primary security patch date, and dangerous open debug toggles.
+          <h3 className="text-lg font-bold text-white mb-1">Quick Hygiene Check</h3>
+          <p className="text-xs text-slate-400 mb-5 leading-relaxed">
+            Surface-level inspection of device connectivity, OS version, primary security patch date, and root binaries.
           </p>
 
-          <div className="text-[11px] text-slate-400 space-y-1.5 pt-3 border-t border-slate-800">
-            <div className="flex items-center gap-1.5 text-slate-300">
-              <Check className="w-3.5 h-3.5 text-cyan-400" />
-              <span>OS Build & Kernel Baseline</span>
+          <div className="text-[11px] text-slate-400 space-y-2 pt-4 border-t border-slate-800">
+            <div className="flex items-center gap-2 text-slate-300">
+              <Check className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+              <span>Network Reachability & Latency Probe</span>
             </div>
-            <div className="flex items-center gap-1.5 text-slate-300">
-              <Check className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Basic Storage Encryption State</span>
+            <div className="flex items-center gap-2 text-slate-300">
+              <Check className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+              <span>OS Build & Security Patch Baseline</span>
+            </div>
+            <div className="flex items-center gap-2 text-slate-300">
+              <Check className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+              <span>Root Privilege & su Binary Audit</span>
             </div>
           </div>
         </div>
 
-        {/* Standard Audit */}
+        {/* Exhaustive Deep A-Z */}
         <div
-          onClick={() => setSelectedDepth('standard')}
-          className={`p-5 rounded-2xl border transition-all cursor-pointer relative ${
-            selectedDepth === 'standard'
-              ? 'bg-slate-850 border-cyan-500 shadow-xl shadow-cyan-950/40 ring-1 ring-cyan-500/50'
+          onClick={() => setSelectedDepth('deep')}
+          className={`p-6 rounded-2xl border transition-all cursor-pointer relative ${
+            selectedDepth === 'deep'
+              ? 'bg-slate-850 border-purple-500 shadow-xl shadow-purple-950/40 ring-1 ring-purple-500/50'
               : 'bg-slate-900/60 hover:bg-slate-900 border-slate-800'
           }`}
         >
-          <div className="absolute -top-3 right-4 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 text-[10px] font-bold text-white uppercase tracking-wider shadow-sm">
+          <div className="absolute -top-3 right-4 px-3 py-0.5 rounded-full bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-500 text-[10px] font-bold text-white uppercase tracking-wider shadow-md">
             Recommended
           </div>
 
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
-              <Layers className="w-5 h-5" />
-            </div>
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-800 text-slate-300">
-              ~14 Seconds
-            </span>
-          </div>
-
-          <h3 className="text-base font-bold text-white mb-1">Standard Audit</h3>
-          <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-            Adds application permission overreach, open port enumerations, and live public NVD CVE cross-referencing.
-          </p>
-
-          <div className="text-[11px] text-slate-400 space-y-1.5 pt-3 border-t border-slate-800">
-            <div className="flex items-center gap-1.5 text-slate-300">
-              <Check className="w-3.5 h-3.5 text-cyan-400" />
-              <span>All Quick Check Controls</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-slate-300">
-              <Check className="w-3.5 h-3.5 text-cyan-400" />
-              <span>App Permission & Sideload Audit</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-slate-300">
-              <Check className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Public NVD CVE Vulnerability Lookup</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Deep A-Z */}
-        <div
-          onClick={() => setSelectedDepth('deep')}
-          className={`p-5 rounded-2xl border transition-all cursor-pointer relative ${
-            selectedDepth === 'deep'
-              ? 'bg-slate-850 border-cyan-500 shadow-xl shadow-cyan-950/40 ring-1 ring-cyan-500/50'
-              : 'bg-slate-900/60 hover:bg-slate-900 border-slate-800'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400">
               <ShieldAlert className="w-5 h-5" />
             </div>
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-800 text-slate-300">
-              ~22 Seconds
+            <span className="px-2.5 py-1 rounded text-[10px] font-bold uppercase bg-purple-950/60 text-purple-300 border border-purple-800">
+              Exhaustive A–Z Audit
             </span>
           </div>
 
-          <h3 className="text-base font-bold text-white mb-1">Deep (A–Z) Audit</h3>
-          <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-            Full-spectrum sweep: root/jailbreak integrity, certificate trust stores, exposed services, and historical CVE trends.
+          <h3 className="text-lg font-bold text-white mb-1">Exhaustive Deep (A–Z) Audit</h3>
+          <p className="text-xs text-slate-400 mb-5 leading-relaxed">
+            Full-spectrum inspection: multi-port socket sweep (ADB/Termux/Shells), SELinux enforcement, cleartext HTTP, and comprehensive Android CVE correlation.
           </p>
 
-          <div className="text-[11px] text-slate-400 space-y-1.5 pt-3 border-t border-slate-800">
-            <div className="flex items-center gap-1.5 text-slate-300">
-              <Check className="w-3.5 h-3.5 text-cyan-400" />
-              <span>All Standard Audit Controls</span>
+          <div className="text-[11px] text-slate-400 space-y-2 pt-4 border-t border-slate-800">
+            <div className="flex items-center gap-2 text-slate-300">
+              <Check className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+              <span>All Quick Baseline Controls</span>
             </div>
-            <div className="flex items-center gap-1.5 text-slate-300">
-              <Check className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Root CA / Trust Store Inspection</span>
+            <div className="flex items-center gap-2 text-slate-300">
+              <Check className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+              <span>Multi-Port Socket & Listening Daemon Sweep</span>
             </div>
-            <div className="flex items-center gap-1.5 text-slate-300">
-              <Check className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Device SoC Historical CVE Analytics</span>
+            <div className="flex items-center gap-2 text-slate-300">
+              <Check className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+              <span>Cleartext HTTP & Network Security Config</span>
+            </div>
+            <div className="flex items-center gap-2 text-slate-300">
+              <Check className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+              <span>SELinux Mandatory Access & Container Sandbox</span>
+            </div>
+            <div className="flex items-center gap-2 text-slate-300">
+              <Check className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+              <span>NVD Android Security Bulletins & Known CVE Mapping</span>
             </div>
           </div>
         </div>

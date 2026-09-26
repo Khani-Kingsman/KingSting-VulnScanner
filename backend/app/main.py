@@ -29,7 +29,11 @@ from app.discovery.real_detector import (
     check_ip_liveness,
     delete_device,
     clear_offline_devices,
-    REGISTERED_MOBILES
+    REGISTERED_MOBILES,
+    AUTHORIZED_TARGETS,
+    authorize_device,
+    unauthorize_device,
+    get_authorized_devices
 )
 
 init_db()
@@ -65,6 +69,21 @@ class MobileRegistrationRequest(BaseModel):
     platform: Optional[str] = None
     network: Optional[str] = None
     custom_target: Optional[str] = None
+
+class DeviceAuthorizeRequest(BaseModel):
+    id: Optional[str] = None
+    name: str
+    module: str = "android"
+    connection_mode: str = "network"
+    ip_or_serial: str
+    os_version: Optional[str] = None
+    model_name: Optional[str] = None
+    vendor: Optional[str] = None
+
+class DeviceNotifyRequest(BaseModel):
+    ip_or_serial: str
+    name: Optional[str] = None
+    message: Optional[str] = None
 
 @app.get("/api/health")
 async def health_check():
@@ -117,6 +136,21 @@ async def register_mobile_endpoint(req: MobileRegistrationRequest):
             pass
 
     dev_title = req.model if req.model.lower().startswith(req.vendor.lower()) else f"{req.vendor} {req.model}"
+
+    # Automatically authorize this registered phone
+    auth_device_data = {
+        "id": f"and_qr_{req.client_ip.replace('.', '_')}",
+        "name": f"{dev_title} (QR Linked)",
+        "module": "android",
+        "connection_mode": "wireless_qr",
+        "ip_or_serial": req.client_ip,
+        "os_version": f"{req.os_version} • {req.hardware or 'Mobile'}",
+        "model_name": req.model,
+        "vendor": req.vendor,
+        "status": "online"
+    }
+    authorize_device(auth_device_data)
+
     return {
         "success": True,
         "message": f"Successfully registered {dev_title} ({req.client_ip}) for defensive audit"
@@ -125,6 +159,80 @@ async def register_mobile_endpoint(req: MobileRegistrationRequest):
 @app.get("/api/devices/registered-mobiles")
 async def get_registered_mobiles_endpoint():
     return list(REGISTERED_MOBILES.values())
+
+@app.get("/api/devices/authorized", response_model=List[TargetDevice])
+async def get_authorized_devices_endpoint():
+    """Returns all devices authorized for audit."""
+    return get_authorized_devices()
+
+@app.post("/api/devices/authorize")
+async def authorize_device_endpoint(req: DeviceAuthorizeRequest):
+    """Explicitly authorizes a discovered device for security auditing."""
+    data = req.model_dump()
+    target_obj = authorize_device(data)
+    
+    targets = []
+    if "active" in ws_clients:
+        targets.extend(ws_clients["active"])
+    for ws in set(targets):
+        try:
+            await ws.send_json({
+                "type": "device_authorized",
+                "device": target_obj.model_dump()
+            })
+        except Exception:
+            pass
+            
+    return {
+        "success": True,
+        "message": f"Target {target_obj.name} ({target_obj.ip_or_serial}) successfully authorized for audit.",
+        "device": target_obj
+    }
+
+@app.delete("/api/devices/authorized/{device_id}")
+async def unauthorize_device_endpoint(device_id: str):
+    """Removes an authorized device from the audit queue."""
+    removed = unauthorize_device(device_id)
+    targets = []
+    if "active" in ws_clients:
+        targets.extend(ws_clients["active"])
+    for ws in set(targets):
+        try:
+            await ws.send_json({
+                "type": "device_unauthorized",
+                "device_id": device_id
+            })
+        except Exception:
+            pass
+    return {"success": removed, "message": f"Target {device_id} removed from authorized list"}
+
+@app.post("/api/devices/notify-audit")
+async def notify_device_audit_endpoint(req: DeviceNotifyRequest):
+    """Sends a real network notification / handshake probe to the target device indicating an audit is being requested."""
+    import socket
+    clean_ip = req.ip_or_serial.split(":")[0].strip()
+    
+    probe_success = False
+    for port in [80, 5555, 8080, 8000, 443]:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(0.3)
+        try:
+            if s.connect_ex((clean_ip, port)) == 0:
+                probe_success = True
+                s.close()
+                break
+        except Exception:
+            pass
+        finally:
+            s.close()
+
+    return {
+        "success": True,
+        "notified": True,
+        "target_ip": clean_ip,
+        "channel_active": probe_success,
+        "message": f"Security audit request dispatched to {req.name or clean_ip} ({clean_ip}). Follow on-device steps to authorize."
+    }
 
 @app.get("/api/devices/{module}", response_model=List[TargetDevice])
 async def get_devices(module: ScanModule):

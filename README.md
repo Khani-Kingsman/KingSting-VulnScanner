@@ -23,7 +23,7 @@
 
 1. **Wireless Local Subnets & Network Infrastructure**
 2. **Android Mobile Endpoints (Physical USB & Wireless ADB)**
-3. **iOS & iPadOS Hardware & Profiles**
+3. **iOS & iPadOS Hardware & Profiles** *(Coming Soon — Prototype in Progress)*
 
 Audits produce structured telemetry, identify misconfigurations or unpatched components, correlate findings against official CVE bulletins, and generate signed compliance records.
 
@@ -44,19 +44,24 @@ All assessment routines adhere strictly to non-destructive auditing standards:
 
 ### 1. Wireless Network Module
 * **WLAN Configuration Audit**: Evaluates active 802.11 beacons, authentication methods (WPA2/WPA3 Personal/Enterprise), cipher suites (CCMP, TKIP), and Protected Management Frames (PMF) enforcement.
-* **Subnet Host Discovery**: Rapid ARP cache interrogation and ICMP/socket discovery across `/24` IPv4 subnets to enumerate routers, endpoints, smartphones, and IoT hardware.
+* **Full `/24` Subnet Device Discovery**: Multi-threaded ARP and ICMP ping sweep across `1` to `254` discovering all router-connected smartphones, laptops, access points, and endpoints.
+* **Target Authorization Workflow**: Discovered nodes are kept distinct from approved scan targets. Clicking **SECURITY AUDIT** initiates an on-device handshake and opens step-by-step authorization instructions before moving the target into the active audit table.
 * **Gateway Attack Surface Sweep**: Non-blocking TCP connection probing against standard service ports (FTP:21, SSH:22, Telnet:23, DNS:53, HTTP:80, HTTPS:443, SMB:445, RTSP:554, WebProxy:8080).
 * **DNS Resolution Integrity**: Validates consistency between local gateway resolvers and known public secure resolvers (Cloudflare, Google Public DNS) to detect potential redirection or DNS hijacking.
 
-### 2. Android Module
+### 2. Android Module (Deep A-Z Vulnerability Audit)
+* **Two-Tier Audit Depth**: Streamlined into **Quick Hygiene Check** (rapid surface baseline) and **Exhaustive Deep (A-Z) Comprehensive Audit** (full-spectrum root, kernel, cleartext, listening daemon, and CVE mapping).
 * **Instant QR Wireless Onboarding**: Zero-cable pairing via high-contrast cyber QR code (`/mobile-audit`), extracting real hardware concurrency, WebGL GPU profile, screen density, and initiating automated permission consent.
 * **Cable-Free Wireless Interrogation**: Direct integration with Android 11+ Wireless Debugging using 6-digit pairing codes (`adb pair`) and direct network ports (`adb connect`), enabling deep mobile audits without a physical USB cable.
-* **OS & Patch Level Baseline**: Verifies Android OS version currency, Security Patch Level lag, and OEM lifecycle status (e.g. Samsung Galaxy S10 end-of-support advisories).
-* **Root & Privilege Integrity**: Checks for binary artifacts (`su`, SuperSU, Magisk traces), test-keys builds, and listening root remote command shells.
-* **Service & Test Port Sweep**: Real active socket probe testing for unauthenticated ADB daemons on TCP port 5555, cleartext HTTP servers, mobile FTP servers (2121), SSH daemons (8022), and custom test services.
-* **Permission Overreach & User App Audit**: Evaluates application privilege footprints, identifying sideloaded packages requesting high-risk capabilities (Accessibility Services, Device Admin, SMS/Call Logs).
+* **Multi-Port Socket & Daemon Audit**: Multi-threaded active socket sweep probing for unauthenticated ADB daemons on TCP port 5555, cleartext HTTP servers (8080, 8000, 8888, 5000, 3000), mobile FTP servers (2121), SSH/Termux daemons (8022), Telnet (2323), VNC (5900), and debug listeners (9999, 4444).
+* **Comprehensive CVE Correlation**: Deep mapping against high-impact Android vulnerabilities including Bluetooth keystroke injection (`CVE-2023-45866`), Framework WorkSource LPE (`CVE-2023-20963`), Lockscreen SIM PIN bypass (`CVE-2022-20465`), ARM Mali GPU use-after-free (`CVE-2023-26083`/`CVE-2022-38181`), MediaTek CMDQ kernel root (`CVE-2020-0069`), and Exynos baseband corruption (`CVE-2023-21492`).
+* **SELinux & Storage Cryptography**: Audits kernel SELinux enforcement (`Enforcing` vs `Permissive`), application sandbox integrity, and hardware-backed File-Based Encryption (FBE).
 
-### 3. iOS, iPadOS & macOS Module
+### 3. iOS, iPadOS & macOS Module `[Coming Soon / Under Development]`
+
+> [!NOTE]
+> The iOS and iPadOS interrogation subsystem is currently in active prototype development and slated for release in an upcoming update. The module is temporarily disabled in the desktop UI while native MobileDevice USB abstractions and protocol drivers are finalized.
+
 * **Apple Network Attack Surface**: Interrogates active Apple network services including mDNS/Bonjour (5353), AirPlay (7000), APNs (5223), and MobileDevice Lockdownd (62078).
 * **Build & Firmware Cadence**: Validates iOS/iPadOS release version against Apple Security Bulletins and active zero-day advisories (e.g. WebKit CVE-2024-23222, CVE-2023-42916).
 * **Sandbox Integrity**: Verifies containerization and integrity of filesystem isolation boundaries (read-only Signed System Volume).

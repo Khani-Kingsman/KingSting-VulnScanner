@@ -102,6 +102,40 @@ export async function clearOfflineDevices(): Promise<{ success: boolean; cleared
   return await res.json();
 }
 
+export async function getAuthorizedDevices(): Promise<TargetDevice[]> {
+  const res = await fetch(`${API_BASE}/api/devices/authorized`);
+  if (!res.ok) throw new Error('Failed to load authorized devices');
+  return await res.json();
+}
+
+export async function authorizeDevice(deviceData: Partial<TargetDevice>): Promise<{ success: boolean; message: string; device: TargetDevice }> {
+  const res = await fetch(`${API_BASE}/api/devices/authorize`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(deviceData)
+  });
+  if (!res.ok) throw new Error('Failed to authorize device');
+  return await res.json();
+}
+
+export async function unauthorizeDevice(deviceId: string): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`${API_BASE}/api/devices/authorized/${encodeURIComponent(deviceId)}`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) throw new Error('Failed to unauthorize device');
+  return await res.json();
+}
+
+export async function notifyDeviceAudit(ipOrSerial: string, name?: string, message?: string): Promise<{ success: boolean; notified: boolean; message: string }> {
+  const res = await fetch(`${API_BASE}/api/devices/notify-audit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ip_or_serial: ipOrSerial, name, message })
+  });
+  if (!res.ok) throw new Error('Failed to dispatch audit notification');
+  return await res.json();
+}
+
 export function getPdfDownloadUrl(scanId: string): string {
   return `${API_BASE}/api/scans/${scanId}/pdf`;
 }

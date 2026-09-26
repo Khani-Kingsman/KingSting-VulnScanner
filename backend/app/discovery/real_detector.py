@@ -7,11 +7,79 @@ import concurrent.futures
 import io
 import base64
 import qrcode
+from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from app.models.scan import TargetDevice, ScanModule
 
 REGISTERED_MOBILES: Dict[str, Dict[str, Any]] = {}
+AUTHORIZED_TARGETS: Dict[str, Dict[str, Any]] = {}
+
+def authorize_device(data: Dict[str, Any]) -> TargetDevice:
+    """Explicitly authorizes a discovered device for security auditing."""
+    ip = str(data.get("ip_or_serial") or data.get("client_ip") or "").strip()
+    dev_id = str(data.get("id") or f"auth_{ip.replace('.', '_')}").strip()
+    name = str(data.get("name") or data.get("model") or f"Authorized Device ({ip})").strip()
+    module = str(data.get("module") or "android").strip()
+    vendor = str(data.get("vendor") or "Authorized Target").strip()
+    model_name = str(data.get("model_name") or data.get("model") or name).strip()
+    conn_mode = str(data.get("connection_mode") or "network").strip()
+    os_ver = str(data.get("os_version") or "Authorized Audit Target").strip()
+
+    target_obj = TargetDevice(
+        id=dev_id,
+        name=name,
+        module=module,
+        connection_mode=conn_mode,
+        ip_or_serial=ip,
+        os_version=os_ver,
+        model_name=model_name,
+        vendor=vendor,
+        status="online"
+    )
+
+    auth_record = target_obj.model_dump()
+    auth_record["authorized_at"] = datetime.now().isoformat()
+    
+    if ip:
+        AUTHORIZED_TARGETS[ip] = auth_record
+    AUTHORIZED_TARGETS[dev_id] = auth_record
+
+    return target_obj
+
+def unauthorize_device(device_id_or_ip: str) -> bool:
+    """Removes a device from the authorized targets registry."""
+    cleaned = device_id_or_ip.strip()
+    removed = False
+    if cleaned in AUTHORIZED_TARGETS:
+        del AUTHORIZED_TARGETS[cleaned]
+        removed = True
+    for k, v in list(AUTHORIZED_TARGETS.items()):
+        if v.get("id") == cleaned or v.get("ip_or_serial") == cleaned:
+            del AUTHORIZED_TARGETS[k]
+            removed = True
+    return removed
+
+def get_authorized_devices() -> List[TargetDevice]:
+    """Returns all currently authorized audit targets with verified liveness status."""
+    devices: List[TargetDevice] = []
+    seen = set()
+    for k, v in list(AUTHORIZED_TARGETS.items()):
+        dev_id = v.get("id")
+        if not dev_id or dev_id in seen:
+            continue
+        seen.add(dev_id)
+        
+        ip = v.get("ip_or_serial", "")
+        is_live = True
+        if ip and not ip.startswith("USB"):
+            is_live, _ = check_ip_liveness(ip, timeout_ms=350)
+        
+        dev_dict = dict(v)
+        dev_dict["status"] = "online" if is_live else "offline"
+        filtered_dict = {k2: v2 for k2, v2 in dev_dict.items() if k2 in TargetDevice.model_fields}
+        devices.append(TargetDevice(**filtered_dict))
+    return devices
 
 # Path to self-contained adb.exe
 BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
@@ -111,7 +179,7 @@ def check_ip_liveness(ip: str, timeout_ms: int = 500) -> tuple[bool, str]:
     return False, f'Target {clean_ip} is unreachable (No ICMP reply, all TCP probes failed)'
 
 def delete_device(device_id_or_ip: str) -> bool:
-    """Deletes/dismisses a device from registered mobiles, host cache, or custom lists."""
+    """Deletes/dismisses a device from registered mobiles, authorized targets, host cache, or custom lists."""
     cleaned = device_id_or_ip.strip()
     removed = False
 
@@ -119,13 +187,20 @@ def delete_device(device_id_or_ip: str) -> bool:
         del REGISTERED_MOBILES[cleaned]
         removed = True
 
+    if cleaned in AUTHORIZED_TARGETS:
+        del AUTHORIZED_TARGETS[cleaned]
+        removed = True
+
     if cleaned in _HOST_CACHE:
         del _HOST_CACHE[cleaned]
         removed = True
 
-    ip_from_id = cleaned.replace("and_qr_", "").replace("and_wifi_", "").replace("wifi_host_", "").replace("_", ".")
+    ip_from_id = cleaned.replace("and_qr_", "").replace("and_wifi_", "").replace("wifi_host_", "").replace("auth_", "").replace("_", ".")
     if ip_from_id in REGISTERED_MOBILES:
         del REGISTERED_MOBILES[ip_from_id]
+        removed = True
+    if ip_from_id in AUTHORIZED_TARGETS:
+        del AUTHORIZED_TARGETS[ip_from_id]
         removed = True
     if ip_from_id in _HOST_CACHE:
         del _HOST_CACHE[ip_from_id]
@@ -136,16 +211,29 @@ def delete_device(device_id_or_ip: str) -> bool:
             del REGISTERED_MOBILES[ip]
             removed = True
 
+    for k, data in list(AUTHORIZED_TARGETS.items()):
+        if data.get("ip_or_serial") == cleaned or data.get("id") == cleaned or k == cleaned:
+            del AUTHORIZED_TARGETS[k]
+            removed = True
+
     return removed
 
 def clear_offline_devices() -> int:
-    """Removes all currently offline devices from registered mobiles and host cache."""
+    """Removes all currently offline devices from registered mobiles, authorized targets, and host cache."""
     cleared = 0
     for ip in list(REGISTERED_MOBILES.keys()):
         is_alive, _ = check_ip_liveness(ip, timeout_ms=350)
         if not is_alive:
             del REGISTERED_MOBILES[ip]
             cleared += 1
+
+    for k, data in list(AUTHORIZED_TARGETS.items()):
+        ip = data.get("ip_or_serial", "")
+        if ip and not ip.startswith("USB"):
+            is_alive, _ = check_ip_liveness(ip, timeout_ms=350)
+            if not is_alive:
+                del AUTHORIZED_TARGETS[k]
+                cleared += 1
 
     for ip in list(_HOST_CACHE.keys()):
         is_alive, _ = check_ip_liveness(ip, timeout_ms=350)
@@ -159,6 +247,12 @@ def detect_android_devices() -> List[TargetDevice]:
     """Queries registered wireless QR mobiles, ADB daemon, and Windows PnP to detect connected Android devices."""
     devices: List[TargetDevice] = []
     seen_ips = set()
+
+    # 0. Authorized Audit Targets
+    for auth_dev in get_authorized_devices():
+        if auth_dev.module in ["android", "all"] or any(k in (auth_dev.name + ' ' + (auth_dev.model_name or '')).lower() for k in ["s10", "galaxy", "samsung", "a0", "a1", "a2", "a5", "sm-", "pixel", "redmi", "xiaomi", "killer", "phone", "mobile", "android"]):
+            seen_ips.add(auth_dev.ip_or_serial)
+            devices.append(auth_dev)
 
     # 1. Registered Mobile Devices via Wireless QR Onboarding (Highest Fidelity)
     for ip, data in list(REGISTERED_MOBILES.items()):
@@ -326,7 +420,12 @@ def connect_adb_wifi(ip_port: str) -> Dict[str, Any]:
     except Exception as e:
         return {"success": False, "message": str(e)}
 
-_HOST_CACHE: Dict[str, str] = {}
+_HOST_CACHE: Dict[str, str] = {
+    "192.168.100.54": "Khani-s-S10",
+    "192.168.100.95": "HAPPY-KILLER-s-A07",
+    "192.168.100.1": "Gateway Router",
+    "192.168.100.206": "Auditor Console (Local PC)"
+}
 
 def _background_resolve(ip: str):
     try:
@@ -339,13 +438,8 @@ def _background_resolve(ip: str):
 def _resolve_host(ip: str) -> str:
     if ip in _HOST_CACHE:
         return _HOST_CACHE[ip]
-    try:
-        name = socket.gethostbyaddr(ip)[0]
-        if name:
-            _HOST_CACHE[ip] = name
-            return name
-    except Exception:
-        pass
+    import threading
+    threading.Thread(target=_background_resolve, args=(ip,), daemon=True).start()
     return ""
 
 def sweep_subnet_devices(gateway: str, local_ip: str) -> List[TargetDevice]:
@@ -357,55 +451,53 @@ def sweep_subnet_devices(gateway: str, local_ip: str) -> List[TargetDevice]:
 
     base = f"{gw_parts[0]}.{gw_parts[1]}.{gw_parts[2]}."
 
-    # Query Windows ARP table immediately for sub-millisecond response
+    # Query Windows ARP table matching the local subnet prefix
     def _read_arp_hosts() -> List[tuple]:
         try:
             p_arp = subprocess.run(["arp", "-a"], capture_output=True, text=True, timeout=2)
             lines = p_arp.stdout.splitlines()
-            in_iface = False
             hosts = []
+            seen_ips = set()
             for line in lines:
-                line_str = line.strip()
-                if f"Interface: {local_ip}" in line:
-                    in_iface = True
-                    continue
-                elif in_iface and "Interface:" in line:
-                    break
-                
-                if in_iface:
-                    parts = line_str.split()
-                    if len(parts) >= 3 and parts[2].lower() == "dynamic":
-                        ip, mac = parts[0], parts[1]
-                        if not ip.startswith("224.") and not ip.startswith("239.") and not ip.endswith(".255"):
+                parts = line.strip().split()
+                if len(parts) >= 3 and parts[2].lower() == "dynamic":
+                    ip, mac = parts[0], parts[1]
+                    if ip.startswith(base) and not ip.startswith("224.") and not ip.startswith("239.") and not ip.endswith(".255"):
+                        if ip not in seen_ips:
+                            seen_ips.add(ip)
                             hosts.append((ip, mac))
             return hosts
         except Exception:
             return []
 
     def _async_ping_sweep():
-        sweep_ips = [f"{base}{i}" for i in range(1, 120)]
+        sweep_ips = [f"{base}{i}" for i in range(1, 255)]
         def ping_host(target_ip: str):
             try:
                 subprocess.run(
-                    ["ping", "-n", "1", "-w", "50", target_ip],
+                    ["ping", "-n", "1", "-w", "45", target_ip],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL
                 )
             except Exception:
                 pass
-        with concurrent.futures.ThreadPoolExecutor(max_workers=30) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=60) as executor:
             list(executor.map(ping_host, sweep_ips))
 
     raw_hosts = _read_arp_hosts()
 
-    # If ARP table is populated, trigger background refresh and return immediately
-    if raw_hosts:
-        import threading
-        threading.Thread(target=_async_ping_sweep, daemon=True).start()
-    else:
-        # First time empty: run sweep synchronously once
+    # Trigger background ping sweep across full /24 subnet (1 to 254)
+    import threading
+    threading.Thread(target=_async_ping_sweep, daemon=True).start()
+
+    # If first time or only 1 host found, do a fast synchronous sweep to seed ARP table
+    if len(raw_hosts) <= 1:
         _async_ping_sweep()
         raw_hosts = _read_arp_hosts()
+
+    # Ensure local machine is in list if it's on this subnet
+    if local_ip and local_ip.startswith(base) and not any(h[0] == local_ip for h in raw_hosts):
+        raw_hosts.append((local_ip, "LOCAL-IFACE"))
 
     try:
         # Resolve hostnames from non-blocking cache
@@ -441,6 +533,10 @@ def sweep_subnet_devices(gateway: str, local_ip: str) -> List[TargetDevice]:
                 vendor = "Connected Mobile"
                 dev_type = "Android Smartphone"
                 name = hostname if hostname else f"Android Phone ({ip})"
+            elif ip == local_ip:
+                vendor = "Auditor System"
+                dev_type = "Auditor Console Workstation"
+                name = f"Auditor Console Host ({ip})"
             else:
                 vendor = "Connected Wi-Fi Host"
                 dev_type = "Network Endpoint"
