@@ -26,6 +26,9 @@ from app.discovery.real_detector import (
     pair_adb_wifi,
     generate_mobile_pairing_qr,
     get_local_ip,
+    check_ip_liveness,
+    delete_device,
+    clear_offline_devices,
     REGISTERED_MOBILES
 )
 
@@ -134,6 +137,57 @@ async def get_devices(module: ScanModule):
         return detect_ios_devices()
     else:
         raise HTTPException(status_code=400, detail="Invalid scan module")
+
+@app.delete("/api/devices/registered/{device_ip}")
+async def delete_registered_mobile_endpoint(device_ip: str):
+    """Deletes a registered mobile device by its IP address."""
+    success = delete_device(device_ip)
+    targets = []
+    if "active" in ws_clients:
+        targets.extend(ws_clients["active"])
+    for ws in set(targets):
+        try:
+            await ws.send_json({
+                "type": "device_removed",
+                "device_id": device_ip
+            })
+        except Exception:
+            pass
+    return {"success": success, "message": f"Device at {device_ip} removed from scanner"}
+
+@app.delete("/api/devices/{device_id}")
+async def delete_device_endpoint(device_id: str):
+    """Deletes/dismisses a device from scanner memory, registered mobiles, and host cache."""
+    success = delete_device(device_id)
+    targets = []
+    if "active" in ws_clients:
+        targets.extend(ws_clients["active"])
+    for ws in set(targets):
+        try:
+            await ws.send_json({
+                "type": "device_removed",
+                "device_id": device_id
+            })
+        except Exception:
+            pass
+    return {"success": success, "message": f"Device {device_id} removed from scanner"}
+
+@app.post("/api/devices/clear-offline")
+async def clear_offline_devices_endpoint():
+    """Removes all currently offline devices."""
+    count = clear_offline_devices()
+    targets = []
+    if "active" in ws_clients:
+        targets.extend(ws_clients["active"])
+    for ws in set(targets):
+        try:
+            await ws.send_json({
+                "type": "devices_cleared",
+                "cleared_count": count
+            })
+        except Exception:
+            pass
+    return {"success": True, "cleared_count": count, "message": f"Cleared {count} offline devices"}
 
 @app.post("/api/devices/pair-wifi-adb")
 async def pair_wifi_adb_endpoint(req: WifiAdbPairRequest):

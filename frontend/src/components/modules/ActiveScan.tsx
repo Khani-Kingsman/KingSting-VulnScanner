@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { TargetDevice, ScanDepth, CheckStep, Finding, ScanResult } from '../../types';
-import { connectScanWebSocket } from '../../services/api';
+import { connectScanWebSocket, deleteDevice } from '../../services/api';
 import {
   Activity,
   CheckCircle2,
@@ -12,7 +12,9 @@ import {
   ShieldAlert,
   Terminal,
   Flame,
-  ChevronLeft
+  ChevronLeft,
+  Trash2,
+  WifiOff
 } from 'lucide-react';
 
 interface ActiveScanProps {
@@ -33,8 +35,14 @@ export const ActiveScan: React.FC<ActiveScanProps> = ({
   const [findings, setFindings] = useState<Finding[]>([]);
   const [progressPercent, setProgressPercent] = useState<number>(0);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
-  const [currentStepDetails, setCurrentStepDetails] = useState<string>('Initializing defensive inspection runtime...');
+  const [currentStepDetails, setCurrentStepDetails] = useState<string>('Conducting pre-flight reachability probe...');
   const [isCompleted, setIsCompleted] = useState(false);
+  const [scanFailed, setScanFailed] = useState<{
+    reason: string;
+    message: string;
+    diagnostics?: string;
+  } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const socketRef = useRef<WebSocket | null>(null);
 
@@ -66,7 +74,16 @@ export const ActiveScan: React.FC<ActiveScanProps> = ({
   }, []);
 
   const handleScanEvent = (event: any) => {
-    if (event.type === 'step_started') {
+    if (event.type === 'preflight_checking') {
+      setCurrentStepDetails(event.message || 'Conducting pre-flight reachability probe...');
+    } else if (event.type === 'scan_failed') {
+      setScanFailed({
+        reason: event.reason,
+        message: event.message,
+        diagnostics: event.diagnostics
+      });
+      setIsCompleted(false);
+    } else if (event.type === 'step_started') {
       setActiveStepId(event.step.id);
       setCurrentStepDetails(`Auditing: ${event.step.name} (${event.step.category})...`);
       setSteps((prev) => {
@@ -147,6 +164,88 @@ export const ActiveScan: React.FC<ActiveScanProps> = ({
         );
     }
   };
+
+  if (scanFailed) {
+    return (
+      <div className="w-full max-w-4xl mx-auto py-12 px-4">
+        <div className="p-8 rounded-3xl bg-slate-900/95 border border-rose-500/50 shadow-2xl shadow-rose-950/40 backdrop-blur-xl">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-400 shrink-0">
+              <WifiOff className="w-8 h-8 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="px-2.5 py-0.5 rounded text-[10px] font-extrabold uppercase bg-rose-950 text-rose-300 border border-rose-800">
+                  PRE-FLIGHT REACHABILITY CHECK FAILED
+                </span>
+                <span className="text-xs text-slate-500 font-mono">Liveness: OFFLINE</span>
+              </div>
+              <h2 className="text-2xl font-black text-white">Target Offline — Audit Halted</h2>
+              <p className="text-xs text-slate-400">
+                Target: <strong className="text-cyan-300">{target.name}</strong> ({target.ip_or_serial})
+              </p>
+            </div>
+          </div>
+
+          <div className="p-5 rounded-2xl bg-slate-950/80 border border-rose-900/40 space-y-3 mb-6 text-xs text-slate-300">
+            <div className="flex items-start gap-2.5">
+              <AlertOctagon className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+              <div className="w-full">
+                <strong className="text-rose-300 text-xs block mb-1">Hardware Reachability Diagnostics:</strong>
+                <p className="text-rose-200/90 font-mono text-[11px] bg-slate-900/90 p-3 rounded-xl border border-rose-950">
+                  {scanFailed.diagnostics || scanFailed.message}
+                </p>
+              </div>
+            </div>
+            <p className="text-slate-400 text-[11px] leading-relaxed pt-1">
+              Zero-simulation assurance: KING STING never generates synthetic reports for offline targets.
+              The scan was immediately halted because the target IP address did not respond to ICMP echo or active socket handshakes.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-slate-800">
+            <div className="text-[11px] text-slate-500">
+              Elapsed Time: {formatTime(elapsedSeconds)} • Zero packets sent to offline host
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={async () => {
+                  if (window.confirm(`Delete device '${target.name}' (${target.ip_or_serial}) from scanner?`)) {
+                    setIsDeleting(true);
+                    try {
+                      await deleteDevice(target.ip_or_serial);
+                      if (onBack) onBack();
+                    } catch (err) {
+                      console.error('Delete failed:', err);
+                    } finally {
+                      setIsDeleting(false);
+                    }
+                  }
+                }}
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-rose-950/60 hover:bg-rose-900 border border-rose-800 text-xs font-bold text-rose-300 hover:text-white transition-colors cursor-pointer"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>{isDeleting ? 'Deleting...' : 'Delete Offline Device'}</span>
+              </button>
+
+              {onBack && (
+                <button
+                  type="button"
+                  onClick={onBack}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition-colors cursor-pointer shadow-lg shadow-cyan-950/40"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span>Return to Target Selection</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-6xl mx-auto py-6 px-4">

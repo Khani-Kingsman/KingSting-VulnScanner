@@ -86,6 +86,22 @@ export async function getAuditLogs(limit: number = 50): Promise<AuditEntry[]> {
   return await res.json();
 }
 
+export async function deleteDevice(deviceIdOrIp: string): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`${API_BASE}/api/devices/${encodeURIComponent(deviceIdOrIp)}`, {
+    method: 'DELETE'
+  });
+  if (!res.ok) throw new Error('Failed to delete device');
+  return await res.json();
+}
+
+export async function clearOfflineDevices(): Promise<{ success: boolean; cleared_count: number; message: string }> {
+  const res = await fetch(`${API_BASE}/api/devices/clear-offline`, {
+    method: 'POST'
+  });
+  if (!res.ok) throw new Error('Failed to clear offline devices');
+  return await res.json();
+}
+
 export function getPdfDownloadUrl(scanId: string): string {
   return `${API_BASE}/api/scans/${scanId}/pdf`;
 }

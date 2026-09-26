@@ -78,13 +78,90 @@ def read_arp_hosts() -> List[tuple]:
     except Exception:
         return []
 
+def check_ip_liveness(ip: str, timeout_ms: int = 500) -> tuple[bool, str]:
+    """Actively verifies if target device is online via ICMP ping and direct TCP probes."""
+    clean_ip = ip.strip()
+    if ":" in clean_ip:
+        clean_ip = clean_ip.split(":")[0]
+
+    # Fast ICMP Ping probe (1 fast ping, retry once if lost)
+    for attempt in range(2):
+        try:
+            p = subprocess.run(['ping', '-n', '1', '-w', str(timeout_ms), clean_ip], capture_output=True, text=True, timeout=1.5)
+            out = p.stdout.lower()
+            if ('reply from ' + clean_ip.lower() in out or 'bytes=' in out or 'ttl=' in out) and 'unreachable' not in out and 'timed out' not in out:
+                return True, 'ICMP Ping confirmed'
+        except Exception:
+            pass
+
+    # Fast TCP Socket Probes on standard mobile / network service ports
+    probe_ports = [5555, 80, 443, 8080, 8000, 2121, 8022, 2323, 4444]
+    for port in probe_ports:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(0.25)
+        try:
+            if s.connect_ex((clean_ip, port)) == 0:
+                s.close()
+                return True, f'TCP port {port} active'
+        except Exception:
+            pass
+        finally:
+            s.close()
+
+    return False, f'Target {clean_ip} is unreachable (No ICMP reply, all TCP probes failed)'
+
+def delete_device(device_id_or_ip: str) -> bool:
+    """Deletes/dismisses a device from registered mobiles, host cache, or custom lists."""
+    cleaned = device_id_or_ip.strip()
+    removed = False
+
+    if cleaned in REGISTERED_MOBILES:
+        del REGISTERED_MOBILES[cleaned]
+        removed = True
+
+    if cleaned in _HOST_CACHE:
+        del _HOST_CACHE[cleaned]
+        removed = True
+
+    ip_from_id = cleaned.replace("and_qr_", "").replace("and_wifi_", "").replace("wifi_host_", "").replace("_", ".")
+    if ip_from_id in REGISTERED_MOBILES:
+        del REGISTERED_MOBILES[ip_from_id]
+        removed = True
+    if ip_from_id in _HOST_CACHE:
+        del _HOST_CACHE[ip_from_id]
+        removed = True
+
+    for ip, data in list(REGISTERED_MOBILES.items()):
+        if data.get("client_ip") == cleaned or ip == cleaned:
+            del REGISTERED_MOBILES[ip]
+            removed = True
+
+    return removed
+
+def clear_offline_devices() -> int:
+    """Removes all currently offline devices from registered mobiles and host cache."""
+    cleared = 0
+    for ip in list(REGISTERED_MOBILES.keys()):
+        is_alive, _ = check_ip_liveness(ip, timeout_ms=350)
+        if not is_alive:
+            del REGISTERED_MOBILES[ip]
+            cleared += 1
+
+    for ip in list(_HOST_CACHE.keys()):
+        is_alive, _ = check_ip_liveness(ip, timeout_ms=350)
+        if not is_alive:
+            del _HOST_CACHE[ip]
+            cleared += 1
+
+    return cleared
+
 def detect_android_devices() -> List[TargetDevice]:
     """Queries registered wireless QR mobiles, ADB daemon, and Windows PnP to detect connected Android devices."""
     devices: List[TargetDevice] = []
     seen_ips = set()
 
     # 1. Registered Mobile Devices via Wireless QR Onboarding (Highest Fidelity)
-    for ip, data in REGISTERED_MOBILES.items():
+    for ip, data in list(REGISTERED_MOBILES.items()):
         seen_ips.add(ip)
         vendor = data.get("vendor", "Android")
         model = data.get("model", "Mobile")
@@ -92,6 +169,11 @@ def detect_android_devices() -> List[TargetDevice]:
         os_ver = data.get("os_version", "Android")
         hw = data.get("hardware", "Mobile Hardware")
         screen = data.get("screen", "")
+        
+        # Real-time liveness check: is this registered phone reachable right now?
+        is_online, _ = check_ip_liveness(ip, timeout_ms=450)
+        status_val = "online" if is_online else "offline"
+
         devices.append(TargetDevice(
             id=f"and_qr_{ip.replace('.', '_')}",
             name=f"{dev_name} (QR Linked)",
@@ -101,7 +183,7 @@ def detect_android_devices() -> List[TargetDevice]:
             os_version=f"{os_ver} • {hw}" if hw else os_ver,
             model_name=model,
             vendor=vendor,
-            status="online"
+            status=status_val
         ))
 
     # 2. Run adb devices -l
@@ -166,7 +248,7 @@ def detect_android_devices() -> List[TargetDevice]:
 
     # 3. Add discovered mobile phones on Wi-Fi subnet (if not already added via QR)
     active_ips = {ip for ip, _ in read_arp_hosts()}
-    for ip, host_name in _HOST_CACHE.items():
+    for ip, host_name in list(_HOST_CACHE.items()):
         if ip in seen_ips:
             continue
         if active_ips and ip not in active_ips:
@@ -174,6 +256,7 @@ def detect_android_devices() -> List[TargetDevice]:
         h_lower = host_name.lower()
         if any(k in h_lower for k in ["s10", "galaxy", "samsung", "a0", "a1", "a2", "a5", "sm-", "pixel", "redmi", "xiaomi", "killer"]):
             seen_ips.add(ip)
+            is_online, _ = check_ip_liveness(ip, timeout_ms=450)
             devices.append(TargetDevice(
                 id=f"and_wifi_{ip.replace('.', '_')}",
                 name=f"{host_name} (Wi-Fi Detected)",
@@ -183,7 +266,7 @@ def detect_android_devices() -> List[TargetDevice]:
                 os_version="Android Smartphone on Local Subnet",
                 model_name=host_name,
                 vendor="Samsung Mobile" if "s10" in h_lower or "galaxy" in h_lower else "Android Mobile",
-                status="online"
+                status="online" if is_online else "offline"
             ))
 
     # 4. If no devices found, check Windows PnP to see if a phone is plugged in with USB Debugging OFF!
@@ -243,11 +326,7 @@ def connect_adb_wifi(ip_port: str) -> Dict[str, Any]:
     except Exception as e:
         return {"success": False, "message": str(e)}
 
-_HOST_CACHE: Dict[str, str] = {
-    "192.168.100.54": "Khani-s-S10",
-    "192.168.100.31": "Khani-s-S10",
-    "192.168.100.95": "HAPPY-KILLER-s-A07"
-}
+_HOST_CACHE: Dict[str, str] = {}
 
 def _background_resolve(ip: str):
     try:
@@ -367,6 +446,7 @@ def sweep_subnet_devices(gateway: str, local_ip: str) -> List[TargetDevice]:
                 dev_type = "Network Endpoint"
                 name = hostname if hostname else f"Wi-Fi Host ({ip})"
 
+            is_live, _ = check_ip_liveness(ip, timeout_ms=300)
             devices.append(TargetDevice(
                 id=f"wifi_host_{ip.replace('.', '_')}",
                 name=name,
@@ -376,7 +456,7 @@ def sweep_subnet_devices(gateway: str, local_ip: str) -> List[TargetDevice]:
                 os_version=f"MAC: {mac.upper()} | {dev_type}",
                 model_name=hostname if hostname else f"Host {ip}",
                 vendor=vendor,
-                status="online"
+                status="online" if is_live else "offline"
             ))
     except Exception as e:
         print(f"Error parsing ARP table: {e}")

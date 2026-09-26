@@ -10,6 +10,7 @@ from app.models.audit import AuditEntry
 from app.engine.real_scanner import RealAndroidScanner, RealWirelessScanner
 from app.engine.real_ios_scanner import RealIOSScanner
 from app.db.audit_log import record_scan
+from app.discovery.real_detector import check_ip_liveness, get_adb_command
 
 class ScanSessionManager:
     def __init__(self):
@@ -99,6 +100,83 @@ class ScanSessionManager:
             "total_steps": total_steps,
             "timestamp": started_at
         })
+
+        # =========================================================================
+        # MANDATORY STEP 0: REAL HARDWARE / NETWORK LIVENESS PRE-FLIGHT PROBE
+        # =========================================================================
+        await self._emit_event(event_callback, {
+            "type": "preflight_checking",
+            "scan_id": scan_id,
+            "message": f"Conducting pre-flight reachability probe for {scan_request.target.name} ({scan_request.target.ip_or_serial})..."
+        })
+
+        target_ip = scan_request.target.ip_or_serial
+        is_online = True
+        reachability_detail = "Target connection verified"
+
+        if scan_request.module == "android":
+            if scan_request.target.connection_mode == "usb":
+                import subprocess
+                adb_bin = get_adb_command()
+                try:
+                    res = subprocess.run([adb_bin, "devices"], capture_output=True, text=True, timeout=3)
+                    if scan_request.target.ip_or_serial not in res.stdout:
+                        is_online = False
+                        reachability_detail = f"Device serial '{scan_request.target.ip_or_serial}' not detected on USB bus by ADB daemon."
+                except Exception as e:
+                    is_online = False
+                    reachability_detail = str(e)
+            else:
+                is_online, reachability_detail = check_ip_liveness(target_ip, timeout_ms=650)
+        elif scan_request.module in ["wireless", "ios"]:
+            if "." in target_ip:
+                is_online, reachability_detail = check_ip_liveness(target_ip, timeout_ms=650)
+
+        if not is_online:
+            fail_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            fail_summary = (
+                f"AUDIT HALTED: Target '{scan_request.target.name}' ({scan_request.target.ip_or_serial}) "
+                f"is OFFLINE or unreachable on local network. Diagnostics: {reachability_detail}."
+            )
+
+            failed_result = ScanResult(
+                scan_id=scan_id,
+                module=scan_request.module,
+                depth=scan_request.depth,
+                target=scan_request.target,
+                started_at=started_at,
+                completed_at=fail_time,
+                status="failed",
+                score=0,
+                grade="F",
+                total_checks=total_steps,
+                passed_checks=0,
+                warning_checks=0,
+                failed_checks=0,
+                findings=[],
+                steps=[],
+                summary=fail_summary,
+                authorized_by=scan_request.authorized_by,
+                organization=scan_request.organization,
+                audit_hash=self.generate_audit_hash(scan_id, fail_time, scan_request.target, 0, scan_request.authorized_by)
+            )
+
+            self.completed_scans[scan_id] = failed_result
+            if scan_id in self.active_scans:
+                del self.active_scans[scan_id]
+
+            await self._emit_event(event_callback, {
+                "type": "scan_failed",
+                "scan_id": scan_id,
+                "reason": "device_offline",
+                "message": fail_summary,
+                "diagnostics": reachability_detail,
+                "target": scan_request.target.model_dump(),
+                "timestamp": fail_time,
+                "result": failed_result.model_dump()
+            })
+
+            return failed_result
 
         completed_steps_list: List[CheckStep] = []
         all_findings: List[Finding] = []

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { TargetDevice, ScanModule } from '../../types';
-import { getDevices, pairWifiAdb, connectWifiAdb, getMobileQrCode } from '../../services/api';
+import { getDevices, pairWifiAdb, connectWifiAdb, getMobileQrCode, deleteDevice, clearOfflineDevices } from '../../services/api';
 import {
   Smartphone,
   Wifi,
@@ -21,7 +21,9 @@ import {
   QrCode,
   Copy,
   ExternalLink,
-  Check
+  Check,
+  Trash2,
+  WifiOff
 } from 'lucide-react';
 
 interface DeviceSelectProps {
@@ -410,21 +412,36 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
 
           {/* Quick-fill Helper for Detected Subnet Devices */}
           {adbMode !== 'qr' && (
-            <div className="mb-4 p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80 flex items-center justify-between text-xs">
+            <div className="mb-4 p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-xs">
               <span className="text-slate-400">
                 Quick IP Fill from local Wi-Fi:
               </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPairingIpPort('192.168.100.31:');
-                    setWifiAdbIp('192.168.100.31:5555');
-                  }}
-                  className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-800/50 text-[11px] font-mono cursor-pointer transition-colors"
-                >
-                  Khani-s-S10 (192.168.100.31)
-                </button>
+              <div className="flex flex-wrap items-center gap-2">
+                {devices.filter((d) => d.ip_or_serial && d.ip_or_serial.includes('.')).map((d) => (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() => {
+                      setPairingIpPort(`${d.ip_or_serial}:`);
+                      setWifiAdbIp(`${d.ip_or_serial}:5555`);
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-800/50 text-[11px] font-mono cursor-pointer transition-colors"
+                  >
+                    {d.name.replace(/\s*\(.*?\)\s*/g, '')} ({d.ip_or_serial})
+                  </button>
+                ))}
+                {devices.filter((d) => d.ip_or_serial && d.ip_or_serial.includes('.')).length === 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPairingIpPort('192.168.100.54:');
+                      setWifiAdbIp('192.168.100.54:5555');
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-800/50 text-[11px] font-mono cursor-pointer transition-colors"
+                  >
+                    Khani-s-S10 (192.168.100.54)
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -525,7 +542,25 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
             <span>
               {module === 'wireless' ? `Discovered Wi-Fi Devices (${devices.length})` : `Detected Real Targets (${devices.length})`}
             </span>
-            <span className="text-[10px] text-emerald-400 font-medium">Ready for Audit Authorization</span>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await clearOfflineDevices();
+                    fetchDeviceList(false);
+                  } catch (err) {
+                    console.error('Failed to clear offline devices:', err);
+                  }
+                }}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-750 text-[11px] font-semibold text-slate-400 hover:text-slate-200 border border-slate-700 transition-colors cursor-pointer"
+                title="Remove all unreachable / offline devices from list"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-slate-400" />
+                <span>Clear Offline</span>
+              </button>
+              <span className="text-[10px] text-emerald-400 font-medium">Ready for Audit Authorization</span>
+            </div>
           </div>
 
           {devices.map((device) => {
@@ -555,13 +590,14 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
                     <div className="flex items-center gap-2 mb-1">
                       <h4 className="text-sm font-bold text-white">{device.name}</h4>
                       <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border flex items-center gap-1 ${
                           device.status === 'online'
                             ? 'bg-emerald-950 text-emerald-400 border-emerald-800'
-                            : 'bg-amber-950 text-amber-400 border-amber-800'
+                            : 'bg-rose-950 text-rose-400 border-rose-800'
                         }`}
                       >
-                        {device.status}
+                        <span className={`w-1.5 h-1.5 rounded-full ${device.status === 'online' ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'}`} />
+                        <span>{device.status}</span>
                       </span>
                       {device.vendor && (
                         <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">
@@ -587,12 +623,36 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
                   </div>
                 </div>
 
-                <div
-                  className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
-                    isSelected ? 'border-cyan-400 bg-cyan-500 text-white' : 'border-slate-700 bg-slate-800'
-                  }`}
-                >
-                  {isSelected && <CheckCircle className="w-3.5 h-3.5" />}
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    title="Delete / Forget Device"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      if (window.confirm(`Delete device '${device.name}' (${device.ip_or_serial}) from scanner?`)) {
+                        try {
+                          await deleteDevice(device.ip_or_serial);
+                          setDevices((prev) => prev.filter((d) => d.id !== device.id && d.ip_or_serial !== device.ip_or_serial));
+                          if (selectedDevice?.id === device.id) {
+                            setSelectedDevice(null);
+                          }
+                        } catch (err) {
+                          console.error('Failed to delete device:', err);
+                        }
+                      }
+                    }}
+                    className="p-2 rounded-xl bg-slate-800/80 hover:bg-rose-950/80 text-slate-400 hover:text-rose-400 border border-slate-700 hover:border-rose-700/60 transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+
+                  <div
+                    className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
+                      isSelected ? 'border-cyan-400 bg-cyan-500 text-white' : 'border-slate-700 bg-slate-800'
+                    }`}
+                  >
+                    {isSelected && <CheckCircle className="w-3.5 h-3.5" />}
+                  </div>
                 </div>
               </div>
             );
@@ -690,15 +750,21 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
       </div>
 
       {/* Bottom Sticky Action Bar: Selected Target & Continue to Scan Depth */}
-      <div className="pt-4 border-t border-slate-800/80 flex items-center justify-between gap-4">
+      <div className="pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-4">
         <div>
           {selectedDevice ? (
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+              <span className={`w-2 h-2 rounded-full ${selectedDevice.status === 'online' ? 'bg-cyan-400 animate-pulse' : 'bg-rose-500'}`} />
               <span className="text-xs text-slate-300">
                 Selected Target: <strong className="text-white">{selectedDevice.name}</strong>{' '}
                 <span className="font-mono text-cyan-400">({selectedDevice.ip_or_serial})</span>
               </span>
+              {selectedDevice.status === 'offline' && (
+                <span className="ml-2 px-2.5 py-0.5 rounded text-[10px] font-bold bg-rose-950 text-rose-300 border border-rose-800 flex items-center gap-1">
+                  <WifiOff className="w-3 h-3 text-rose-400" />
+                  <span>TARGET OFFLINE</span>
+                </span>
+              )}
             </div>
           ) : (
             <span className="text-xs text-slate-500">Select or add a real target to proceed.</span>
@@ -706,16 +772,16 @@ export const DeviceSelect: React.FC<DeviceSelectProps> = ({
         </div>
 
         <button
-          disabled={!selectedDevice}
-          onClick={() => selectedDevice && onSelectDevice(selectedDevice)}
+          disabled={!selectedDevice || selectedDevice.status === 'offline'}
+          onClick={() => selectedDevice && selectedDevice.status !== 'offline' && onSelectDevice(selectedDevice)}
           className={`flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-bold tracking-wide transition-all ${
-            selectedDevice
+            selectedDevice && selectedDevice.status !== 'offline'
               ? 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/30 cursor-pointer'
               : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
           }`}
         >
           <ShieldCheck className="w-4 h-4" />
-          <span>Continue to Scan Depth</span>
+          <span>{selectedDevice?.status === 'offline' ? 'Target Offline — Cannot Audit' : 'Continue to Scan Depth'}</span>
         </button>
       </div>
     </div>

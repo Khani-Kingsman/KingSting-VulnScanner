@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { ScanResult, SeverityLevel } from '../../types';
-import { getPdfDownloadUrl } from '../../services/api';
+import { getPdfDownloadUrl, deleteDevice } from '../../services/api';
 import {
   Download,
   RotateCcw,
@@ -12,7 +12,8 @@ import {
   Hash,
   ChevronDown,
   ChevronUp,
-  ChevronLeft
+  ChevronLeft,
+  Trash2
 } from 'lucide-react';
 
 interface ScanResultsProps {
@@ -131,6 +132,29 @@ export const ScanResults: React.FC<ScanResultsProps> = ({
               <span>Change Depth</span>
             </button>
           )}
+
+          <button
+            onClick={async () => {
+              if (window.confirm(`Delete target device '${result.target.name}' (${result.target.ip_or_serial}) from scanner?`)) {
+                try {
+                  await deleteDevice(result.target.ip_or_serial);
+                  alert(`Device '${result.target.name}' deleted successfully.`);
+                  if (onBackToTargets) {
+                    onBackToTargets();
+                  } else {
+                    onNewScan();
+                  }
+                } catch (err: any) {
+                  alert(`Failed to delete device: ${err.message || err}`);
+                }
+              }
+            }}
+            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/60 hover:border-rose-600 text-xs font-semibold text-rose-300 hover:text-white transition-colors cursor-pointer"
+            title="Delete this device from scanner memory"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+            <span>Delete Device</span>
+          </button>
 
           <button
             onClick={onNewScan}

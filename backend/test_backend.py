@@ -25,23 +25,45 @@ async def test_backend_flow():
     print(f"iOS Quick Steps: {len(ios_steps)}")
     assert len(ios_steps) >= 3, "Expected >=3 steps for iOS Quick"
 
-    print("2. Testing Scan Lifecycle Execution (simulated Android Quick)...")
-    target = TargetDevice(
-        id="test_and_01",
-        name="Test Galaxy S23",
+    print("2. Testing Pre-Flight Target Liveness Probe (Offline Target)...")
+    offline_target = TargetDevice(
+        id="offline_test",
+        name="Offline Ghost Device",
         module="android",
-        connection_mode="usb",
-        ip_or_serial="TEST-SERIAL-1234",
-        os_version="Android 13",
-        model_name="Galaxy S23",
-        vendor="Samsung",
+        connection_mode="network",
+        ip_or_serial="192.168.100.99",
+        status="offline"
+    )
+    offline_req = ScanRequest(
+        module="android",
+        depth="quick",
+        target=offline_target,
+        consent_confirmed=True
+    )
+    offline_events = []
+    async def offline_handler(evt):
+        offline_events.append(evt.get("type"))
+
+    offline_result = await scan_manager.run_scan_lifecycle(offline_req, offline_handler)
+    print(f"Offline Halt Result: Status={offline_result.status}, Events={offline_events}")
+    assert offline_result.status == "failed", "Expected scan on offline target to fail during pre-flight"
+    assert "scan_failed" in offline_events, "Expected scan_failed event for offline target"
+
+    print("3. Testing Scan Lifecycle Execution on Reachable Target...")
+    live_target = TargetDevice(
+        id="test_live_gw",
+        name="Local Gateway Interface",
+        module="wireless",
+        connection_mode="network",
+        ip_or_serial="192.168.100.1",
+        os_version="Gateway Access Point",
         status="online"
     )
 
     req = ScanRequest(
-        module="android",
+        module="wireless",
         depth="quick",
-        target=target,
+        target=live_target,
         authorized_by="Antigravity Test Auditor",
         organization="Test Security Lab",
         consent_confirmed=True
@@ -54,16 +76,25 @@ async def test_backend_flow():
     result = await scan_manager.run_scan_lifecycle(req, event_handler)
     print(f"Scan Completed: ID={result.scan_id}, Score={result.score}, Grade={result.grade}, Findings={len(result.findings)}")
     print(f"Events Captured: {len(events_received)} -> {set(events_received)}")
+    assert result.status == "completed"
     assert result.score > 0
-    assert len(events_received) > 0
+    assert "scan_completed" in events_received
 
-    print("3. Testing PDF Generation...")
+    print("4. Testing Device Deletion...")
+    from app.discovery.real_detector import delete_device, REGISTERED_MOBILES
+    REGISTERED_MOBILES["192.168.100.245"] = {"client_ip": "192.168.100.245", "model": "Test Phone"}
+    assert "192.168.100.245" in REGISTERED_MOBILES
+    delete_device("192.168.100.245")
+    assert "192.168.100.245" not in REGISTERED_MOBILES
+    print("Device deletion verified successfully!")
+
+    print("5. Testing PDF Generation...")
     pdf_path = generate_pdf_report(result)
     print(f"PDF Generated at: {pdf_path}")
     assert os.path.exists(pdf_path), "PDF file was not created"
     assert os.path.getsize(pdf_path) > 1000, "PDF file is suspiciously small"
 
-    print("4. Testing SQLite Audit Trail...")
+    print("6. Testing SQLite Audit Trail...")
     logs = list_audit_entries(10)
     print(f"Audit log entries found: {len(logs)}")
     assert len(logs) >= 1, "Audit log did not record the scan"
